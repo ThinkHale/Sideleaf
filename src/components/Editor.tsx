@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Type,
   PenLine,
@@ -445,12 +445,30 @@ function TitleEditor({ value, onChange }: { value: string; onChange: (value: str
 
 function AutoTextarea({ block, onChange }: { block: Block; onChange: (text: string) => void }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fit = useCallback(() => {
+    const element = ref.current;
+    if (!element) return;
+    element.style.height = '0px';
+    element.style.height = `${Math.max(block.kind === 'heading' ? 42 : 32, element.scrollHeight)}px`;
+    element.scrollTop = 0;
+  }, [block.kind]);
+  useEffect(fit, [block.text, fit]);
   useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = '0px';
-      ref.current.style.height = `${Math.max(block.kind === 'heading' ? 42 : 32, ref.current.scrollHeight)}px`;
-    }
-  }, [block.text, block.kind]);
+    let width = -1;
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width === width) return;
+      width = entry.contentRect.width;
+      // Defer height writes and ignore height-only notifications to avoid observer loops.
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    });
+    if (ref.current) observer.observe(ref.current);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [fit]);
   return (
     <textarea
       ref={ref}

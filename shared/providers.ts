@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CaptureState } from './domain';
+import type { CaptureState } from './domain.js';
 
 // Contracts for future provider adapters. No implementation is selected implicitly.
 export const transcriptEventSchema = z

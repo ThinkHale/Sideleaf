@@ -1,4 +1,4 @@
-import type { Page } from './domain';
+import type { Page } from './domain.js';
 
 export function exportMarkdown(page: Page, includePrivate = false): string {
   const blocks = page.document.blocks.filter((b) => includePrivate || !b.excluded);

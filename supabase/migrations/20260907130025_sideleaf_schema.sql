@@ -1,3 +1,17 @@
+-- Sideleaf's backend-only schema. Better Auth ownership is checked by Hono.
+-- No shared credentials are stored in this migration.
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS sideleaf;
+REVOKE ALL ON SCHEMA sideleaf FROM PUBLIC, anon, authenticated;
+SET LOCAL search_path = sideleaf;
+DO $role$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sideleaf_runtime') THEN
+    CREATE ROLE sideleaf_runtime NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+  END IF;
+END
+$role$;
+ALTER ROLE sideleaf_runtime SET search_path = sideleaf;
 CREATE TABLE IF NOT EXISTS auth_user (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL UNIQUE, email_verified boolean NOT NULL DEFAULT false, image text, created_at timestamp NOT NULL, updated_at timestamp NOT NULL);
 CREATE TABLE IF NOT EXISTS auth_rate_limit (id text PRIMARY KEY, key text NOT NULL UNIQUE, count integer NOT NULL, last_request bigint NOT NULL);
 CREATE TABLE IF NOT EXISTS auth_session (id text PRIMARY KEY, expires_at timestamp NOT NULL, token text NOT NULL UNIQUE, created_at timestamp NOT NULL, updated_at timestamp NOT NULL, ip_address text, user_agent text, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE);
@@ -10,3 +24,19 @@ CREATE INDEX IF NOT EXISTS notebooks_owner ON notebooks(user_id);
 CREATE TABLE IF NOT EXISTS pages (id text PRIMARY KEY, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, notebook_id text NOT NULL REFERENCES notebooks(id) ON DELETE CASCADE, title text NOT NULL, document jsonb NOT NULL, version integer NOT NULL DEFAULT 1 CHECK(version > 0), updated_at timestamp NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS pages_owner_notebook ON pages(user_id, notebook_id);
 CREATE TABLE IF NOT EXISTS page_revisions (page_id text NOT NULL REFERENCES pages(id) ON DELETE CASCADE, version integer NOT NULL, title text NOT NULL, document jsonb NOT NULL, mutation_id text NOT NULL, created_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY(page_id, version), UNIQUE(page_id, mutation_id));
+
+GRANT USAGE ON SCHEMA sideleaf TO sideleaf_runtime;
+REVOKE ALL ON ALL TABLES IN SCHEMA sideleaf FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA sideleaf TO sideleaf_runtime;
+ALTER DEFAULT PRIVILEGES IN SCHEMA sideleaf REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated;
+DO $policies$
+DECLARE item record;
+BEGIN
+  FOR item IN SELECT tablename FROM pg_tables WHERE schemaname = 'sideleaf' LOOP
+    EXECUTE format('ALTER TABLE sideleaf.%I ENABLE ROW LEVEL SECURITY', item.tablename);
+    EXECUTE format('DROP POLICY IF EXISTS sideleaf_backend ON sideleaf.%I', item.tablename);
+    EXECUTE format('CREATE POLICY sideleaf_backend ON sideleaf.%I FOR ALL TO sideleaf_runtime USING (true) WITH CHECK (true)', item.tablename);
+  END LOOP;
+END
+$policies$;
+COMMIT;

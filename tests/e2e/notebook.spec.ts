@@ -162,15 +162,36 @@ test('two browser tabs recover conflicting edits as separate pages', async ({ pa
 test('phone and iPad landscape layouts preserve controls and microphone status', async ({
   page,
 }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   await register(page);
   await page.getByRole('button', { name: 'Open a synthetic example' }).click();
+  const note = page.getByLabel('Note text', { exact: true }).first();
+  const text =
+    'A synthetic note to verify saving and reading the complete paragraph after the notebook changes from a desktop window to a narrow phone screen.';
+  await note.fill(text);
   await waitSaved(page);
+  const desktopHeight = await note.evaluate((element) => element.clientHeight);
+  let phoneHeight = 0;
   for (const [name, width, height] of [
     ['phone', 390, 844],
     ['ipad-landscape', 1180, 820],
   ] as const) {
     await page.setViewportSize({ width, height });
     await expect(page.getByLabel('Page title')).toBeVisible();
+    await expect(note).toHaveValue(text);
+    await expect
+      .poll(() => note.evaluate((element) => element.scrollHeight <= element.clientHeight + 1))
+      .toBe(true);
+    await expect.poll(() => note.evaluate((element) => element.scrollTop)).toBe(0);
+    if (name === 'phone') {
+      phoneHeight = await note.evaluate((element) => element.clientHeight);
+      expect(phoneHeight).toBeGreaterThan(desktopHeight);
+    } else {
+      await expect
+        .poll(() => note.evaluate((element) => element.clientHeight))
+        .toBeLessThan(phoneHeight);
+    }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
@@ -184,4 +205,9 @@ test('phone and iPad landscape layouts preserve controls and microphone status',
   await page.getByRole('button', { name: 'Focus', exact: true }).click();
   await expect(page.locator('.mic-status')).toBeVisible();
   await expect(page.getByLabel('Page title')).toBeVisible();
+  await expect(note).toHaveValue(text);
+  await expect
+    .poll(() => note.evaluate((element) => element.scrollHeight <= element.clientHeight + 1))
+    .toBe(true);
+  expect(errors).toEqual([]);
 });

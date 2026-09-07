@@ -1,86 +1,89 @@
 # Hosting and secrets for Sideleaf
 
-Updated 2026-09-07 after the owner proposed GitHub Pages or Vercel. Vercel is the preferred frontend host of those options. This describes the deployment target. No cloud resources have been provisioned or connected yet.
+Updated 2026-09-07. The hosted notebook beta is live at [sideleaf.vercel.app](https://sideleaf.vercel.app), using the owner's selected Vercel and Supabase projects. The Vercel Sideleaf team/project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf). Supabase project `qhgzilyanroqomafhybg` has the private eight-table notebook schema migrated. Restricted database TLS, live production API checks and desktop/phone browser workflows have passed.
 
 ## One shared backend
 
-For the deployment requiring the fewest code changes, use Vercel for the React frontend and one paid Render web service for the existing Node/Hono API. Both clients use the same API and account identity. Supabase supplies Postgres and private file storage. OpenAI is called by the backend for the planned cloud AI features. The earlier single-Render recommendation remains an alternative because Hono can also serve the web files itself.
+Vercel hosts both the built React web app and the Node/Hono API. There is no separate Render service in the selected architecture. Supabase hosts PostgreSQL; Better Auth owns Sideleaf accounts and sessions. The web app uses same-origin `/api/*` routes. The future native app will use the same HTTPS API and identity system.
 
 ```mermaid
 flowchart LR
-  Web[Web app / PWA on Vercel] --> API[Sideleaf API on Render]
-  Native[iOS / iPadOS app] --> API
+  Web[Web app / PWA on Vercel] --> API[Hono API on Vercel]
+  Native[Future iOS / iPadOS sync] --> API
+  Secrets[Vercel server environment] --> API
   API --> DB[Supabase Postgres]
-  API --> Files[Private Supabase Storage]
-  API --> AI[OpenAI]
-  Secrets[Render server secrets] --> API
+  API -. planned .-> Files[Private Supabase Storage]
+  API -. planned .-> AI[OpenAI]
 ```
 
-The native app runs on the device and is distributed separately. It needs the shared API URL and the user's authenticated session. It does not need a second backend or copies of provider keys. The intended result is the same notes, account and usage allowance on both clients, with local drafts synchronized through the shared revision protocol. Native sign-in and synchronization still need implementation.
+The native app runs on the device and is distributed separately through Apple's tooling. It needs the public API URL and the signed-in user's session. It does not need a separate backend or copies of shared provider credentials. Native sign-in and synchronization remain unfinished, so notes do not yet flow between the web app and the native source.
 
-## What each service hosts
+## Current deployment
 
-| Service | Responsibility |
-| --- | --- |
-| GitHub | Source code and deployment history |
-| Vercel | Built web app and ordinary same-origin API proxy |
-| Render | API, authentication, future streaming relay and AI calls |
-| Supabase Postgres | Users, sessions, notebooks, page revisions and future finalized transcripts |
-| Supabase private Storage | Future drawing artifacts, previews and permitted attachments |
-| OpenAI | Future cloud transcription and text processing |
+| Component                | Responsibility and status                                                         |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| GitHub                   | Source repository and Vercel project linkage                                      |
+| Vercel static output     | Vite build in `dist/web`, served from the Sideleaf project                        |
+| Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                      |
+| Supabase Postgres        | Private `sideleaf` schema with auth data, notebooks, pages and revisions          |
+| Better Auth              | Password hashing, sessions, optional Google login and database-backed rate limits |
+| Supabase private Storage | Planned editable ink artifacts and permitted attachments; not integrated          |
+| OpenAI                   | Planned transcription and text processing; no key or adapter connected            |
 
-The current Hono production entry point already serves `dist/web`, so a single Render deployment could serve `/` and `/api/*` from the same origin. In the preferred Vercel frontend arrangement, use Vercel's public app origin and proxy ordinary `/api/*` requests to Render. A chosen app subdomain can be attached later. The domain has not been selected or purchased. Render supports the existing Dockerfile, custom domains and WebSockets. Paid compute is recommended for meetings because its free web services can sleep between uses. [Render web services](https://render.com/docs/web-services), [Docker](https://render.com/docs/docker), [domains](https://render.com/docs/custom-domains), [WebSockets](https://render.com/docs/websocket), [free service limitations](https://render.com/docs/free).
+The root [vercel.json](../vercel.json) is active. It builds the frontend and routes API requests to the local Node function. API responses have private cache controls; the service worker caches static assets, not auth or notebook API responses. The former [external-proxy template](../deploy/vercel.example.json) is historical and inactive. [Vite hosting](https://vercel.com/docs/frameworks/frontend/vite), [Node function entry points](https://vercel.com/docs/functions/runtimes/node-js).
 
-## Vercel deployment preparation
+The API reuses one initialization promise per warm instance, opens a bounded `pg.Pool`, checks auth-table access, and attaches Vercel's pool lifecycle support. Failed initialization can retry later. The selected database route is Supabase's transaction pooler on port 6543, with unnamed SQL queries rather than named prepared statements. Verified TLS passed through the actual restricted connection using the official root certificate bundled at `server/certs/supabase-root-2021.crt`. The certificate is public trust material, not a secret. [Vercel pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres).
 
-[deploy/vercel.example.json](../deploy/vercel.example.json) records the Vite build output, API rewrite, private-response cache controls and service-worker cache header. It is an inactive template with a reserved invalid API hostname. An actual API address and working production login are required before activating it as root `vercel.json`. Publishing only the static files would leave `/api/config`, sign-in and note saves unavailable. [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite), [external rewrites](https://vercel.com/docs/routing/rewrites).
-
-Preserve the `/api` prefix in the proxy destination. Set the backend's `APP_ORIGIN` to the exact public Vercel application origin and use that origin for authentication callbacks. Validate cookies, redirects, private responses and account isolation through the deployed proxy. Preview deployments need separate development credentials and an explicitly configured allowed origin.
-
-The template disables rewrite caching on `/api/*`; the API also emits `Cache-Control: no-store`. External proxy requests have a documented timeout, so future meeting audio should connect directly to an authenticated streaming service with its own short-lived connection authorization. Do not send a long-lived provider key to either client. [Rewrite behavior](https://vercel.com/docs/routing/rewrites), [external request timeout](https://vercel.com/docs/errors/router_external_target_handshake_error).
-
-Vercel can host Hono directly as well. Moving the API there requires an exported app entry point, separate schema migrations, appropriate database pool lifecycle and validation of the combined frontend/API build. It is not configured by this template. Vercel's current WebSocket support is in public beta and connections remain subject to function-duration limits. If the API moves to Vercel, its secrets move to that project's server environment settings. [Hono on Vercel](https://vercel.com/docs/frameworks/backend/hono), [pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [WebSockets](https://vercel.com/docs/functions/websockets).
-
-GitHub Pages is static hosting and its rules exclude commercial SaaS hosting, so it is not the Sideleaf app target. Vercel's Hobby plan is for personal non-commercial use; select an appropriate plan before commercial launch. [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits), [Vercel Hobby rules](https://vercel.com/docs/plans/hobby).
-
-Keep durable data in Supabase. Deployments must not depend on the Render container filesystem retaining notes or files. Sideleaf's planned audio pipeline uses bounded memory buffers and saves no audio recordings; disclosure of OpenAI processing and retention is covered separately in [privacy.md](privacy.md).
+The public origin is `https://sideleaf.vercel.app`. `APP_ORIGIN` can pin that address; the server can also derive the production or preview origin from Vercel's environment. Cookies, callbacks and mutation-origin checks must match it. Preview and production currently share the beta database, so either deployment can affect the same accounts and notes. Isolate preview data and credentials before wider production use. The current function duration is 30 seconds, appropriate for this notebook API. Live audio transport has not been validated against this deployment's execution limits.
 
 ## Where credentials live
 
-Production secrets belong in the Render service's environment settings, entered directly there. An environment group can share selected secrets if a background worker is added later. A separate secret-management service is not needed for this initial deployment. Render may also make configured variables available as Docker build arguments, so keep secret values out of Docker `ARG` declarations and frontend build inputs. [Render environment variables and secrets](https://render.com/docs/configure-environment-variables), [Docker build behavior](https://render.com/docs/docker).
+The database and authentication secrets are configured in the Sideleaf Vercel project's server environment settings. They are injected into the API process, not copied into the browser bundle or native app. A separate secret-management service is unnecessary for this initial single backend. Preview isolation is still outstanding as noted above. Environment changes need a new deployment to reach the running code. [Vercel environment variables](https://vercel.com/docs/environment-variables).
 
-| Variable | Secret? | Purpose and current status |
-| --- | --- | --- |
-| `DATABASE_URL` | Yes | Supabase Postgres connection; supported by current backend, cloud path untested |
-| `BETTER_AUTH_SECRET` | Yes | Stable server authentication secret; supported now |
-| `OPENAI_API_KEY` | Yes | Dedicated Sideleaf project key; provider integration is still to be built |
-| `SUPABASE_SECRET_KEY` | Yes | Proposed server credential for private Storage; integration is still to be built |
-| `GOOGLE_CLIENT_SECRET` | Yes | Supported optional Google login configuration |
-| `GOOGLE_CLIENT_ID` | No | Google login identifier, paired with the server secret |
-| `SUPABASE_URL` | No | Proposed Storage project address; keep in server configuration initially |
-| `APP_ORIGIN` | No | Public HTTPS address for the app and authentication |
-| `NODE_ENV` | No | Set to `production` on the deployed server |
-| `PORT` | No | Hosting platform's assigned listening port |
+| Variable                                    | Secret?                          | Location and purpose                                                                                     |
+| ------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Yes                              | Vercel server environment; restricted `sideleaf_runtime` transaction-pooler connection with verified TLS |
+| `BETTER_AUTH_SECRET`                        | Yes                              | Vercel server environment; stable random authentication secret of at least 32 characters                 |
+| `MIGRATION_DATABASE_URL`                    | Yes                              | Administrative migration session only; not required by the deployed function                             |
+| `ENABLE_PASSWORD_AUTH`                      | No                               | Vercel server environment; `true` explicitly enables the selected email/password beta                    |
+| `APP_ORIGIN`                                | No                               | Exact public HTTPS origin; optional when derived from the correct Vercel environment                     |
+| `NODE_ENV`                                  | No                               | `production` in the deployed function                                                                    |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Client ID public; secret private | Optional server-side Google login configuration; not verified                                            |
+| `OPENAI_API_KEY`                            | Yes                              | Future Vercel server variable; not connected and not sufficient to enable capture                        |
+| `SUPABASE_SECRET_KEY`                       | Yes                              | Future server credential if private Storage needs it; never exposed to clients                           |
+| `SUPABASE_URL`                              | No                               | Future Storage configuration; no Supabase client connection is required by the present UI                |
 
-OpenAI requires provider keys to remain on the server. Neither a JavaScript bundle nor an installed native app is a secret store for a shared provider key. The native Keychain will hold that user's session credentials, not Sideleaf's OpenAI or database credentials. Rotating an OpenAI key then requires updating the backend environment and restarting or redeploying that service, without distributing new client binaries. [OpenAI authentication](https://developers.openai.com/api/reference/overview#authentication).
+Neither `VITE_*` variables nor native configuration files are safe locations for shared secrets. The native Keychain will store the user's own session credentials. Rotating a provider key should only require replacing the backend secret and redeploying, without rebuilding either client. [OpenAI authentication](https://developers.openai.com/api/reference/overview#authentication).
 
-Supabase secret keys bypass RLS and stay on the backend. A publishable key has a different purpose and is not a replacement for the Postgres connection password. This initial design needs no Supabase key in either client. Keep Better Auth initially and disable the Supabase Data API for the server-only database path; Hono remains responsible for checking ownership. [Supabase keys](https://supabase.com/docs/guides/getting-started/api-keys), [secure database access](https://supabase.com/docs/guides/database/secure-data).
+Supabase API keys and PostgreSQL passwords serve different interfaces. The current backend uses a database connection and Better Auth, not Supabase Auth. No Supabase publishable or privileged API key belongs in either client for this architecture. Privileged Storage keys can bypass RLS and must stay on the server if later introduced. [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
-## Preparing accounts
+## Database access and migrations
 
-Create a dedicated Sideleaf Supabase development project and a dedicated OpenAI project/key for development. Keep production data and credentials separate when production is introduced. Save new credentials in a password manager while the connection is being prepared; they do not need to be sent in chat or committed to GitHub.
+Hosted tables live in `sideleaf`, excluded from the Data API. Schema and table access are revoked from `PUBLIC`, `anon` and `authenticated`. The runtime login has schema usage and table CRUD permissions, no schema ownership or DDL permissions, and no RLS bypass. Its role-level search path resolves the existing unqualified Drizzle tables to `sideleaf`.
 
-For Supabase, retain the project URL and connection details from the Connect dialog. For Render, the session pooler on port 5432 is the expected connection method because Supabase currently identifies Render as IPv4-only. We must verify TLS and the actual connection before applying migrations. Use nearby hosting and database regions. [Connection methods](https://supabase.com/docs/guides/database/connecting-to-postgres), [network compatibility](https://supabase.com/docs/guides/troubleshooting/supabase--your-network-ipv4-and-ipv6-compatibility-cHe3BP).
+RLS permits the backend role to operate on these rows. It is not per-user database isolation: Hono and Better Auth enforce ownership on every notebook operation. A future direct Supabase client would require a separately designed and tested authorization model. [Supabase API exposure and RLS](https://supabase.com/docs/guides/api/securing-your-api).
 
-The code checkout is in OneDrive. Local development secrets should eventually be loaded from a file outside that synced folder, or injected into the API process environment. The current scripts load only the repository `.env`; an external-file loader has not been added. Do not put real keys into `.env.example`. Git and Docker ignore rules now also cover `.env.local`, `.env.production` and other `.env.*` variants, while the blank example remains trackable in Git.
+Hosted changes use reviewed files under [supabase/migrations](../supabase/migrations). Both migration histories are aligned: `20260907130025` creates the private notebook schema, and `20260907131718` revokes execution of the provider's `public.rls_auto_enable` function from `PUBLIC`, `anon` and `authenticated` while preserving its event trigger. The runtime connection returned `current_user=sideleaf_runtime`, `current_schema=sideleaf`, and successfully resolved `auth_user`; schema creation and anonymous schema usage were denied. The remaining Supabase advisor warning concerns leaked-password protection in unused Supabase Auth, not Sideleaf's Better Auth login. This is not a complete security audit.
 
-## Remaining deployment work
+Administrative migration credentials remain separate from runtime credentials. The Vercel entry disables startup migration, so requests cannot create or alter tables. Local development continues using PGlite and `server/migrations/001_notebook.sql`; local accounts and drafts are not automatically imported into the hosted beta.
 
-- Verify the Docker build and Supabase connection with the chosen accounts. Render's health-check path should be `/api/health`; the Docker health check now respects `PORT` as well. The API health route currently establishes process readiness, not an ongoing database connectivity check.
-- Separate schema migrations from application startup before using a restricted runtime database role. The current startup executes schema DDL, so a least-privilege runtime configuration is not yet implemented.
-- Configure production sign-in. Current source disables production email/password login; Google credentials are required unless another production login path is implemented.
-- Connect private Storage through ownership-checked routes, then verify access and deletion across accounts.
-- Implement and test native authentication, session storage and synchronization against this API.
-- Implement OpenAI capture and text adapters, usage enforcement, cancellation, disconnect recovery and the reviewed disclosure. Adding a key alone does not enable transcription.
+## Local and Mac continuation
 
-Supabase's recent default-grant change does not replace these checks. Existing table grants can remain, and direct ORM connections are unaffected by that Data API change. [Relevant changelog](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically).
+The Windows checkout is in OneDrive. Keep real development secrets outside that synced folder or inject them into the API process environment. Local scripts still load the repository `.env` when present; an external-secret-file loader has not been added. The example contains names and blank values only. Git, Docker and the explicit `.vercelignore` exclude local databases, real environment files and generated service-link metadata, with the blank example remaining trackable in Git. Vercel CLI upload exclusions are configured separately from Git ignores. The clean deployment file manifest was checked for local database and secret files.
+
+On the Mac, continue from the same GitHub repository. Node 24 runs the web and API development tools. Native work uses `native/project.yml`, XcodeGen and Xcode 26 or later, following [native/README.md](../native/README.md). Compile and test the native app, connect its authentication and revision-based synchronization to the shared API, then validate it on physical hardware. This client needs no Supabase Auth setup or Supabase SDK. Configure a signing team and complete the native app icon packaging for distribution. Do not transfer production database or OpenAI credentials into the Xcode project.
+
+## Verification and remaining work
+
+- Verified: restricted database TLS, schema resolution, schema-creation denial, anonymous schema-usage denial, aligned migrations and server-only Vercel secrets.
+- Verified: production build and all 62 automated tests, comprising 56 Vitest, five local Chromium end-to-end tests and one built-PWA test including teardown.
+- Verified: production and preview API readiness, with HTTP 200 from `/api/health` and configuration reporting `development:false`, `passwordAuth:true` and `capture.ready:false`.
+- Verified in production: two synthetic accounts using secure-cookie sign-up/sign-in, notebook creation, Supabase page persistence after a fresh sign-in, idempotent retry, stale-edit 409, cross-account read/history/export/delete 404, cross-origin mutation 403, exports, history and deletion. Capture returns the intended 503. Both synthetic accounts were deleted and old sessions returned 401.
+- Verified in hosted Chromium at 1440x1000 and 390x844: sign-up, blank-page creation, title/text editing, saved state and retained content after reload. No console warnings or errors occurred. Synthetic UI accounts were cleaned up. Screenshots are under `%TEMP%/sideleaf-hosted-qa/`, outside committed source.
+- Hosted offline behavior has not been retested; the offline end-to-end evidence is from the local built app.
+- Add verified email delivery and password recovery before treating the beta login as a complete production account lifecycle.
+- Connect private Storage through owner-checked routes and verify access and deletion across accounts.
+- Compile the native source on Mac, implement authentication and sync, and validate on physical iPad/Pencil hardware.
+- Implement OpenAI capture and text adapters, usage enforcement, disconnect recovery and reviewed disclosure. Adding a key alone does not implement transcription.
+
+No audio recordings belong in Supabase tables, buckets or application files. The planned audio pipeline uses bounded transient buffers. OpenAI processing and retention are addressed in [privacy.md](privacy.md), separately from notebook storage. The hosted notebook beta does not yet request microphone access.

@@ -11,7 +11,8 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "typeRoots": ["./node_modules/@types", "./node_modules"]
   },
-  "include": ["src", "server", "shared", "tests", "*.ts"]
+  "include": ["src", "server", "shared", "api", "tests", "*.ts"]
 }

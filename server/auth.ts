@@ -1,8 +1,9 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
-import type { Database } from './database';
-import type { Config } from './config';
-import * as schema from './schema';
+import type { Database } from './database.js';
+import type { Config } from './config.js';
+import { passwordAuthEnabled } from './config.js';
+import * as schema from './schema.js';
 export function createAuth(db: Database, config: Config) {
   return betterAuth({
     appName: config.name,
@@ -10,7 +11,7 @@ export function createAuth(db: Database, config: Config) {
     secret: config.secret,
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     trustedOrigins: [config.origin],
-    emailAndPassword: { enabled: !config.production, minPasswordLength: 10 },
+    emailAndPassword: { enabled: passwordAuthEnabled(config), minPasswordLength: 10 },
     socialProviders:
       process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
         ? {
@@ -24,6 +25,7 @@ export function createAuth(db: Database, config: Config) {
     advanced: { useSecureCookies: config.production },
     rateLimit: {
       enabled: true,
+      storage: config.production ? 'database' : 'memory',
       window: 60,
       max: 60,
       ...(!config.production

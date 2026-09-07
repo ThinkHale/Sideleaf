@@ -4,7 +4,7 @@ A working first vertical slice of an AI-assisted meeting notebook. It provides a
 
 Product repository: [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf). Sideleaf is the product name; `PRODUCT_NAME` can override the runtime display name. The supplied Sideleaf logo package is integrated into the web app and native source. Asset mappings and usage are recorded in [branding.md](docs/branding.md).
 
-The proposed web/native deployment and credential locations are described in [hosting-secrets.md](docs/hosting-secrets.md).
+The hosted notebook beta is live at [sideleaf.vercel.app](https://sideleaf.vercel.app). One Vercel project serves the web app and Hono API, with Supabase Postgres for data and Better Auth for accounts. Verified database TLS and live account, persistence, conflict, ownership, export and deletion checks have passed. Shared web/native credential locations and the Mac handoff are described in [hosting-secrets.md](docs/hosting-secrets.md).
 
 ## Run locally
 
@@ -32,7 +32,7 @@ Then open http://127.0.0.1:3001. `preview` serves the built assets with local de
 
 ## Implemented
 
-- Better Auth sign-up/sign-in locally, isolated accounts, optional Google authentication configuration, and server-enforced ownership.
+- Better Auth sign-up/sign-in locally, explicit email/password opt-in for the hosted beta, isolated accounts, optional Google authentication configuration, and server-enforced ownership. Hosted authentication rate limits use database storage shared across Vercel instances.
 - Notebooks, pages, typed notes, heading blocks, basic pressure-bearing ink data, drawing, erasing, moving individual ink strokes, undo/redo, search, and preparation templates.
 - Explicit Type, Write, Mark, Select, and Erase tools. Write circles are ordinary ink. Mark circles select enclosed words and create independently stored semantic marks. Mouse, touch pointer events, keyboard text selection, and keyboard ink movement are supported in source; see the tested platforms below.
 - Important marks, editable follow-up questions and action drafts, addressed/dismissed/later states, and at most two open questions in the margin. Questions use a clearly user-owned deterministic starter, not AI inference.
@@ -51,13 +51,19 @@ npm run test:pwa
 
 Install the test browser once with `npx playwright install chromium`. `test:e2e` can reuse the running development server. `test:pwa` starts a separate built app on port 4173 with its own temporary database. Test accounts use synthetic `example.test` addresses. Test images/PDFs are written under the operating system temporary directory in `meeting-notebook-qa`.
 
-`npm run format` formats the web, API, contracts, tests and documentation. SQL migration `server/migrations/001_notebook.sql` is idempotent and is applied at startup. `npm run db:migrate` applies it explicitly while the embedded API is stopped.
+`npm run format` formats the web, API, contracts, tests and documentation. The local SQL migration `server/migrations/001_notebook.sql` is applied at development startup. `npm run db:migrate` applies that local/general PostgreSQL migration explicitly while the embedded API is stopped. Hosted Supabase uses the reviewed migrations under `supabase/migrations/`; the production request-serving process never runs schema DDL.
+
+The current cloud pass has a passing production build and all 62 automated tests: 56 Vitest, five local Chromium end-to-end tests and one built-PWA test including teardown. Separate live production checks passed for secure-cookie sign-up/sign-in, Supabase persistence after a fresh sign-in, idempotent retries, stale-edit conflicts, cross-account denial, origin protection, exports, history and deletion. Hosted browser checks at desktop and phone sizes passed sign-up, page creation, editing, saving and reload persistence with no console warnings or errors. Synthetic test accounts were cleaned up and capture remains disabled.
 
 ## Deployment configuration
 
-Copy `.env.example` to `.env` only if you need to override local defaults. No secrets are included. The Dockerfile and CI workflow are provided but Docker/public deployment were not run. For a production deployment supply an HTTPS `APP_ORIGIN`, a random `BETTER_AUTH_SECRET` of at least 32 characters, an appropriately secured PostgreSQL `DATABASE_URL`, and configured authentication. Local password sign-up is disabled in production. Google OAuth redirect configuration must match the deployment origin and `/api/auth/callback/google`.
+The root `vercel.json` builds the Vite frontend into `dist/web` and routes `/api/*` to the Node function in `api/index.ts`. This function initializes Hono and a bounded PostgreSQL pool, checks access to the auth table, and uses Vercel's pool lifecycle integration. The assigned public origin is `https://sideleaf.vercel.app`. The Vercel Sideleaf team/project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf). The Dockerfile remains an alternative runtime, not a dependency of this deployment.
 
-Terminate TLS at the ingress, use certificate-verified PostgreSQL transport, restrict database access to the API, and configure encrypted storage and backup retention before real customer use. Never enable payload capture in proxies, tracing, analytics or error reporting. No resources were provisioned, no purchases were made, and nothing was pushed or publicly deployed.
+Supabase project `qhgzilyanroqomafhybg` has the eight-table `sideleaf` schema migrated. That schema is excluded from the Data API. The API uses the restricted `sideleaf_runtime` role through the Supavisor transaction pooler; Better Auth remains the identity system. Verified TLS succeeds using the official bundled Supabase root certificate. Runtime schema resolution, denied schema creation and denied anonymous schema usage have been checked. Both hosted migrations are aligned, including restricted access to the provider's RLS automation function.
+
+Database credentials and the stable `BETTER_AUTH_SECRET` are set only in the Vercel project's server environment. The selected beta enables email/password login with `ENABLE_PASSWORD_AUTH=true`; email verification and password-reset delivery are not implemented. Google login remains optional and unverified. Preview and production currently share the beta database, so preview changes can affect the same accounts and notes. Separate environments before wider production use.
+
+Local `.env` overrides are optional and no secrets belong in `.env.example`. Keep real development credentials outside this OneDrive checkout or inject them into the API process environment. Never place database, OpenAI, or authentication secrets in `VITE_*` variables or native app files. Mac native development needs the shared API contract and user sessions, not Supabase Auth or a Supabase SDK.
 
 ## Current boundary
 

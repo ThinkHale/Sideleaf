@@ -1,4 +1,4 @@
-import type { Anchor, Block, Point } from './domain';
+import type { Anchor, Block, Point } from './domain.js';
 
 // Offsets are UTF-16 code units, matching DOM Range and NSString.
 export function makeAnchor(block: Block, start: number, end: number): Anchor {

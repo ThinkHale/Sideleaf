@@ -3,12 +3,13 @@ import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { z } from 'zod';
-import { notebooks, pages, revisions, user } from './schema';
-import { pageWriteSchema } from '../shared/domain';
-import { exportMarkdown } from '../shared/export';
-import type { Database } from './database';
-import type { Config } from './config';
-import { createAuth } from './auth';
+import { notebooks, pages, revisions, user } from './schema.js';
+import { pageWriteSchema } from '../shared/domain.js';
+import { exportMarkdown } from '../shared/export.js';
+import type { Database } from './database.js';
+import type { Config } from './config.js';
+import { passwordAuthEnabled } from './config.js';
+import { createAuth } from './auth.js';
 
 export function createApp(db: Database, config: Config) {
   const auth = createAuth(db, config);
@@ -37,7 +38,7 @@ export function createApp(db: Database, config: Config) {
     c.json({
       name: config.name,
       development: !config.production,
-      passwordAuth: !config.production,
+      passwordAuth: passwordAuthEnabled(config),
       googleAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       freeMinutes: config.freeMinutes,
       meetingMinutes: config.meetingMinutes,

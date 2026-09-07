@@ -1,8 +1,8 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { configuration } from './config';
-import { openDatabase } from './database';
-import { createApp } from './app';
+import { configuration } from './config.js';
+import { openDatabase } from './database.js';
+import { createApp } from './app.js';
 const config = await configuration();
 const database = await openDatabase(process.env.DATABASE_URL);
 const app = createApp(database.db, config);

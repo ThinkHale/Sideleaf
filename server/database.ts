@@ -5,26 +5,61 @@ import pg from 'pg';
 import { readFile, mkdir, rm } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import lockfile from 'proper-lockfile';
-import * as schema from './schema';
-import { appDataDirectory } from './paths';
+import * as schema from './schema.js';
+import { appDataDirectory } from './paths.js';
 
 export type Database = PgliteDatabase<typeof schema>;
 export async function openDatabase(
   connection?: string,
   directory = join(appDataDirectory, 'database'),
+  options: { migrate?: boolean } = {},
 ) {
-  const migration = await readFile(
-    new URL('./migrations/001_notebook.sql', import.meta.url),
-    'utf8',
-  );
+  const production = process.env.NODE_ENV === 'production';
+  if (production && !connection)
+    throw new Error('Production requires an external PostgreSQL connection.');
+  const migrate = options.migrate ?? !production;
+  const migration = () =>
+    readFile(new URL('./migrations/001_notebook.sql', import.meta.url), 'utf8');
   if (connection) {
-    const pool = new pg.Pool({ connectionString: connection, max: 10 });
-    await pool.query(migration);
-    // Both adapters expose the same PostgreSQL relational/transaction API used here.
-    return {
-      db: postgresDrizzle(pool, { schema }) as unknown as Database,
-      close: () => pool.end(),
-    };
+    if (production) {
+      let address: URL;
+      try {
+        address = new URL(connection);
+      } catch {
+        throw new Error('The PostgreSQL connection URL is invalid.');
+      }
+      if (
+        !['postgres:', 'postgresql:'].includes(address.protocol) ||
+        address.searchParams.getAll('sslmode').length !== 1 ||
+        address.searchParams.get('sslmode') !== 'verify-full' ||
+        address.searchParams.has('ssl')
+      )
+        throw new Error(
+          'Production PostgreSQL requires sslmode=verify-full without an ssl override.',
+        );
+    }
+    const pool = new pg.Pool({
+      connectionString: connection,
+      max: 5,
+      idleTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
+      allowExitOnIdle: true,
+    });
+    pool.on('error', () => {
+      console.error('An idle PostgreSQL connection closed unexpectedly. The pool will reconnect.');
+    });
+    try {
+      if (migrate) await pool.query(await migration());
+      // Both adapters expose the same PostgreSQL relational/transaction API used here.
+      return {
+        db: postgresDrizzle(pool, { schema }) as unknown as Database,
+        pool,
+        close: () => pool.end(),
+      };
+    } catch (error) {
+      await pool.end();
+      throw error;
+    }
   }
   let release: (() => Promise<void>) | undefined;
   if (directory !== ':memory:') {
@@ -41,8 +76,9 @@ export async function openDatabase(
   }
   const client = new PGlite(directory === ':memory:' ? undefined : directory);
   try {
-    await client.exec(migration);
+    if (migrate) await client.exec(await migration());
   } catch (error) {
+    await client.close();
     await release?.();
     throw error;
   }

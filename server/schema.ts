@@ -7,8 +7,16 @@ import {
   jsonb,
   primaryKey,
   index,
+  bigint,
 } from 'drizzle-orm/pg-core';
-import type { NotebookDocument } from '../shared/domain';
+import type { NotebookDocument } from '../shared/domain.js';
+
+export const rateLimit = pgTable('auth_rate_limit', {
+  id: text().primaryKey(),
+  key: text().notNull().unique(),
+  count: integer().notNull(),
+  lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
+});
 
 export const user = pgTable('auth_user', {
   id: text().primaryKey(),

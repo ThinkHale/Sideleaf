@@ -7,3 +7,6 @@ dist
 test-results
 native
 docs/design
+.vercel
+supabase/.temp
+supabase/.branches

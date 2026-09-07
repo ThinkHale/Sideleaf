@@ -2,10 +2,17 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { join } from 'node:path';
-import { appDataDirectory } from './paths';
+import { appDataDirectory } from './paths.js';
 export async function configuration() {
   const production = process.env.NODE_ENV === 'production';
-  const origin = process.env.APP_ORIGIN || 'http://127.0.0.1:5173';
+  const vercelHost =
+    process.env.VERCEL === '1'
+      ? process.env.VERCEL_ENV === 'preview'
+        ? process.env.VERCEL_URL
+        : process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+      : undefined;
+  const origin =
+    process.env.APP_ORIGIN || (vercelHost ? `https://${vercelHost}` : 'http://127.0.0.1:5173');
   let secret = process.env.BETTER_AUTH_SECRET;
   if (
     production &&
@@ -36,3 +43,7 @@ export async function configuration() {
   };
 }
 export type Config = Awaited<ReturnType<typeof configuration>>;
+
+export function passwordAuthEnabled(config: Pick<Config, 'production'>) {
+  return !config.production || process.env.ENABLE_PASSWORD_AUTH === 'true';
+}
