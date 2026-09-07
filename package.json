@@ -1,0 +1,54 @@
+{
+  "name": "sideleaf",
+  "version": "0.1.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ThinkHale/Sideleaf.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --import tsx --env-file-if-exists=.env server/index.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "preview": "node --import tsx --env-file-if-exists=.env server/preview.ts",
+    "build": "tsc --noEmit && vite build",
+    "start": "node --import tsx --env-file-if-exists=.env server/index.ts",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:pwa": "npm run build && playwright test --config playwright.pwa.config.ts",
+    "format": "prettier --write src server shared tests *.ts *.json *.md docs native/project.yml",
+    "check": "npm run build && npm test",
+    "db:migrate": "node --import tsx --env-file-if-exists=.env server/migrate.ts"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.7.3",
+    "@electric-sql/pglite": "^0.5.8",
+    "@hono/node-server": "^2.1.1",
+    "better-auth": "^1.7.3",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.7",
+    "idb": "^8.0.3",
+    "lucide-react": "^1.41.0",
+    "pg": "^8.23.0",
+    "proper-lockfile": "^4.1.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsx": "^4.23.13",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

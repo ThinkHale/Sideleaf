@@ -1,0 +1,41 @@
+.print-document {
+  display: none;
+}
+@media print {
+  .app > .workspace {
+    display: none !important;
+  }
+  .app > .print-document {
+    display: block !important;
+    background: white;
+    color: #222;
+  }
+  .print-document h1 {
+    font-size: 28pt;
+    margin-bottom: 12pt;
+  }
+  .print-document h2 {
+    font-size: 19pt;
+    margin: 20pt 0 10pt;
+    break-after: avoid;
+  }
+  .print-document h3 {
+    font-size: 13pt;
+    margin: 12pt 0 6pt;
+    break-after: avoid;
+  }
+  .print-document p {
+    font-size: 11pt;
+    white-space: pre-wrap;
+    margin: 8pt 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .print-ink {
+    break-before: page;
+  }
+  .print-ink svg {
+    width: 100%;
+    max-height: 240mm;
+  }
+}

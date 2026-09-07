@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS auth_user (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL UNIQUE, email_verified boolean NOT NULL DEFAULT false, image text, created_at timestamp NOT NULL, updated_at timestamp NOT NULL);
+CREATE TABLE IF NOT EXISTS auth_session (id text PRIMARY KEY, expires_at timestamp NOT NULL, token text NOT NULL UNIQUE, created_at timestamp NOT NULL, updated_at timestamp NOT NULL, ip_address text, user_agent text, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS auth_session_owner ON auth_session(user_id);
+CREATE TABLE IF NOT EXISTS auth_account (id text PRIMARY KEY, account_id text NOT NULL, provider_id text NOT NULL, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, access_token text, refresh_token text, id_token text, access_token_expires_at timestamp, refresh_token_expires_at timestamp, scope text, password text, created_at timestamp NOT NULL, updated_at timestamp NOT NULL);
+CREATE INDEX IF NOT EXISTS auth_account_owner ON auth_account(user_id);
+CREATE TABLE IF NOT EXISTS auth_verification (id text PRIMARY KEY, identifier text NOT NULL, value text NOT NULL, expires_at timestamp NOT NULL, created_at timestamp, updated_at timestamp);
+CREATE TABLE IF NOT EXISTS notebooks (id text PRIMARY KEY, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, name text NOT NULL, color text NOT NULL DEFAULT '#687354', created_at timestamp NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS notebooks_owner ON notebooks(user_id);
+CREATE TABLE IF NOT EXISTS pages (id text PRIMARY KEY, user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, notebook_id text NOT NULL REFERENCES notebooks(id) ON DELETE CASCADE, title text NOT NULL, document jsonb NOT NULL, version integer NOT NULL DEFAULT 1 CHECK(version > 0), updated_at timestamp NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS pages_owner_notebook ON pages(user_id, notebook_id);
+CREATE TABLE IF NOT EXISTS page_revisions (page_id text NOT NULL REFERENCES pages(id) ON DELETE CASCADE, version integer NOT NULL, title text NOT NULL, document jsonb NOT NULL, mutation_id text NOT NULL, created_at timestamp NOT NULL DEFAULT now(), PRIMARY KEY(page_id, version), UNIQUE(page_id, mutation_id));
