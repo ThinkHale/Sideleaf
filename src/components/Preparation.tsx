@@ -3,6 +3,7 @@ import { MicOff, Check } from 'lucide-react';
 import { Modal } from './Modal';
 import { templates, type Page, type Preparation as Prep } from '../../shared/domain';
 import type { ProductConfig } from '../api';
+import { captureSupported } from '../capture';
 export function Preparation({
   page,
   config,
@@ -110,13 +111,20 @@ export function Preparation({
               Check capture readiness
             </button>
             {ready && (
-              <p role="status" className="error">
-                {config.capture.reason}
+              <p
+                role="status"
+                className={config.capture.ready && captureSupported() ? '' : 'error'}
+              >
+                {!config.capture.ready
+                  ? config.capture.reason
+                  : !captureSupported()
+                    ? 'This browser does not support live microphone transcription. Use a supported browser over HTTPS.'
+                    : 'Live transcription is connected. Save your preparation, then start live capture above the notebook. Your microphone stays off until you start.'}
               </p>
             )}
             <small>
-              Consent notice is a draft for legal review. This checkbox does not establish legal
-              compliance.
+              Saving preparation does not start the microphone. Confirm participant consent when
+              starting live capture.
             </small>
           </div>
         </div>

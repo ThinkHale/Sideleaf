@@ -12,6 +12,7 @@ import {
   Upload,
   CheckCircle2,
   Menu,
+  Mic,
   MicOff,
   Library,
   ArrowLeft,
@@ -34,6 +35,7 @@ import { Settings } from './components/Settings';
 import { Exports } from './components/Exports';
 import { PrintDocument } from './components/PrintDocument';
 import { Brand } from './components/Brand';
+import { LiveCapture } from './components/LiveCapture';
 
 type Identity = { id: string; name: string; email: string };
 export default function App() {
@@ -119,11 +121,19 @@ function NotebookApp({
     [filter, setFilter] = useState<string | null>(null),
     [search, setSearch] = useState(''),
     [focus, setFocus] = useState(false),
+    [captureActive, setCaptureActive] = useState(false),
+    [microphoneLive, setMicrophoneLive] = useState(false),
     [mobileNav, setMobileNav] = useState(false),
     [mobileTab, setMobileTab] = useState('page');
   const [dialog, setDialog] = useState<
       'prepare' | 'settings' | 'export' | 'new-notebook' | 'delete' | 'history' | null
-    >(null),
+    >(() =>
+      ['success', 'canceled', 'returned'].includes(
+        new URLSearchParams(window.location.search).get('billing') || '',
+      )
+        ? 'settings'
+        : null,
+    ),
     [name, setName] = useState(''),
     [error, setError] = useState('');
   const [history, setHistory] = useState<
@@ -132,6 +142,20 @@ function NotebookApp({
   const record = book.records.find((r) => r.page.id === selected),
     page = record?.page;
   const notebook = book.notebooks.find((n) => n.id === page?.notebookId);
+  const pageSynced = Boolean(
+    record &&
+    page?.version &&
+    !record.mutationId &&
+    record.conflict === undefined &&
+    !book.saving &&
+    !book.error,
+  );
+  const captureReady = config.capture.ready && book.online && (captureActive || pageSynced);
+  const captureReason = !config.capture.ready
+    ? config.capture.reason
+    : !book.online
+      ? 'Reconnect to the internet to start live transcription. You can keep writing notes offline.'
+      : 'Wait for this page to finish syncing before starting live transcription.';
   async function run(fn: () => Promise<unknown>) {
     try {
       setError('');
@@ -291,9 +315,13 @@ function NotebookApp({
                             : 'Saved'}
               </span>
             </span>
-            <span className="mic-status" title="Your microphone is off">
-              <MicOff size={17} />
-              <span>Mic off</span>
+            <span
+              className={`mic-status ${microphoneLive ? 'live' : ''}`}
+              title={microphoneLive ? 'Your microphone is live' : 'Your microphone is off'}
+              aria-label={microphoneLive ? 'Your microphone is live' : 'Your microphone is off'}
+            >
+              {microphoneLive ? <Mic size={17} /> : <MicOff size={17} />}
+              <span>{microphoneLive ? 'Mic live' : 'Mic off'}</span>
             </span>
             {page && (
               <>
@@ -394,14 +422,31 @@ function NotebookApp({
               </button>
             </div>
             <div className={`notebook-layout mobile-${mobileTab}`}>
-              <Editor
-                key={page.id}
-                page={page}
-                onChange={(p) => void book.edit(p)}
-                onDelete={() => setDialog('delete')}
-              />
+              <div className="notebook-main">
+                {page.version > 0 ? (
+                  <LiveCapture
+                    key={`capture-${page.id}`}
+                    pageId={page.id}
+                    ready={captureReady}
+                    reason={captureReason}
+                    onActiveChange={setCaptureActive}
+                    onMicrophoneChange={setMicrophoneLive}
+                  />
+                ) : (
+                  <div className="notice" role="status">
+                    Live transcription will be available after this page is saved.
+                  </div>
+                )}
+                <Editor
+                  key={`editor-${page.id}`}
+                  page={page}
+                  onChange={(p) => void book.edit(p)}
+                  onDelete={() => setDialog('delete')}
+                />
+              </div>
               <Margin
                 page={page}
+                microphoneLive={microphoneLive}
                 onPrepare={() => setDialog('prepare')}
                 onChange={(p) => void book.edit(p)}
               />
@@ -495,7 +540,12 @@ function NotebookApp({
           config={config}
           email={identity.email}
           userId={identity.id}
-          onClose={() => setDialog(null)}
+          onClose={() => {
+            setDialog(null);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('billing');
+            window.history.replaceState(window.history.state, '', url);
+          }}
           onLogout={async () => {
             await book.sync();
             if (book.hasPending())

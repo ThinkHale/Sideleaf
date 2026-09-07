@@ -1,0 +1,5 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+REVOKE USAGE ON SCHEMA cron, net FROM PUBLIC, anon, authenticated, sideleaf_runtime;
+COMMIT;

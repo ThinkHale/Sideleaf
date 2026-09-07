@@ -10,9 +10,13 @@ import type { Database } from './database.js';
 import type { Config } from './config.js';
 import { passwordAuthEnabled } from './config.js';
 import { createAuth } from './auth.js';
+import { createBilling, BillingError } from './billing.js';
+import { createCapture, captureReady, CaptureError, CAPTURE_DISCLOSURE } from './capture.js';
 
 export function createApp(db: Database, config: Config) {
   const auth = createAuth(db, config);
+  const billing = createBilling(db, config);
+  const capture = createCapture(db, config, billing.entitlement);
   const app = new Hono<{ Variables: { userId: string; signedInAt: Date } }>();
   app.use('*', secureHeaders({ crossOriginEmbedderPolicy: false }));
   app.use(
@@ -25,6 +29,11 @@ export function createApp(db: Database, config: Config) {
   );
   app.use('/api/*', async (c, next) => {
     c.header('Cache-Control', 'no-store');
+    await next();
+  });
+  app.post('/api/billing/webhook', billing.webhook);
+  app.get('/api/capture/maintenance', capture.maintenance);
+  app.use('/api/*', async (c, next) => {
     if (
       !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) &&
       c.req.header('origin') !== config.origin
@@ -44,9 +53,11 @@ export function createApp(db: Database, config: Config) {
       meetingMinutes: config.meetingMinutes,
       price: config.price,
       capture: {
-        ready: false,
-        reason:
-          'Live transcription is not connected in this build. No microphone access will be requested. You can prepare the meeting and keep taking notes.',
+        ready: captureReady(),
+        disclosure: CAPTURE_DISCLOSURE,
+        reason: captureReady()
+          ? 'Live microphone transcription is available. Start it from your saved notebook page.'
+          : 'Live transcription is not connected in this build. No microphone access will be requested. You can prepare the meeting and keep taking notes.',
       },
     }),
   );
@@ -58,6 +69,15 @@ export function createApp(db: Database, config: Config) {
     await next();
   });
   const owner = (id: string, uid: string) => and(eq(pages.id, id), eq(pages.userId, uid));
+  app.get('/api/billing', billing.status);
+  app.post('/api/billing/checkout', billing.checkout);
+  app.post('/api/billing/portal', billing.portal);
+  app.get('/api/capture/usage', capture.usageRoute);
+  app.get('/api/capture/pages/:pageId', capture.page);
+  app.post('/api/capture/sessions', capture.start);
+  app.get('/api/capture/sessions/:id/events', capture.events);
+  app.post('/api/capture/sessions/:id/heartbeat', capture.heartbeat);
+  app.post('/api/capture/sessions/:id/stop', capture.stop);
   app.get('/api/notebooks', async (c) =>
     c.json(
       await db
@@ -100,7 +120,7 @@ export function createApp(db: Database, config: Config) {
   app.put('/api/pages/:id', async (c) => {
     const id = z.string().uuid().parse(c.req.param('id'));
     const input = pageWriteSchema.parse(await c.req.json());
-    // This client cannot manufacture transcript or AI provenance in a notes-only build.
+    // Only the provider observer may write confirmed transcript provenance.
     if (input.document.blocks.some((b) => b.source !== 'personal'))
       return c.json({ error: 'Transcript and AI blocks require a trusted ingestion route.' }, 422);
     const uid = c.get('userId');
@@ -194,16 +214,25 @@ export function createApp(db: Database, config: Config) {
     return c.body(exportMarkdown({ ...page, updatedAt: page.updatedAt.toISOString() }));
   });
   app.delete('/api/pages/:id', async (c) => {
-    const found = await db
-      .delete(pages)
-      .where(owner(c.req.param('id'), c.get('userId')))
-      .returning({ id: pages.id });
+    const found = await db.transaction(async (tx) => {
+      await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, c.get('userId')))
+        .for('update');
+      await capture.beforeDelete(c.get('userId'), c.req.param('id'), tx as unknown as Database);
+      return tx
+        .delete(pages)
+        .where(owner(c.req.param('id'), c.get('userId')))
+        .returning({ id: pages.id });
+    });
     return found.length ? c.json({ deleted: true }) : c.json({ error: 'Page not found.' }, 404);
   });
   app.get('/api/account/export', async (c) =>
     c.json({
       exportedAt: new Date().toISOString(),
-      schemaVersion: 1,
+      schemaVersion: 2,
+      transcripts: await capture.accountExport(c.get('userId')),
       notebooks: await db
         .select()
         .from(notebooks)
@@ -231,7 +260,16 @@ export function createApp(db: Database, config: Config) {
       .parse(await c.req.json());
     if (Date.now() - c.get('signedInAt').getTime() > 5 * 60 * 1000)
       return c.json({ error: 'Sign out and sign in again before deleting your account.' }, 403);
-    await db.delete(user).where(eq(user.id, c.get('userId')));
+    await db.transaction(async (tx) => {
+      await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, c.get('userId')))
+        .for('update');
+      await capture.beforeDelete(c.get('userId'), undefined, tx as unknown as Database);
+      await billing.beforeAccountDeletion(c.get('userId'), tx);
+      await tx.delete(user).where(eq(user.id, c.get('userId')));
+    });
     return c.json({ deleted: true });
   });
   app.post('/api/capture/start', (c) =>
@@ -245,6 +283,8 @@ export function createApp(db: Database, config: Config) {
     ),
   );
   app.onError((error, c) => {
+    if (error instanceof CaptureError || error instanceof BillingError)
+      return c.json({ error: error.message }, error.status);
     if (error instanceof z.ZodError)
       return c.json(
         {

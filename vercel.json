@@ -5,7 +5,7 @@
   "outputDirectory": "dist/web",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 30,
+      "maxDuration": 300,
       "includeFiles": "server/certs/**"
     }
   },

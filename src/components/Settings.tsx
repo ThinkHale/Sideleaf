@@ -3,6 +3,7 @@ import { Download, LogOut } from 'lucide-react';
 import { Modal } from './Modal';
 import { api, download, type ProductConfig } from '../api';
 import { Recovery } from './Recovery';
+import { BillingPlan } from './BillingPlan';
 export function Settings({
   config,
   email,
@@ -42,11 +43,25 @@ export function Settings({
           cache.
         </small>
       </section>
+      <BillingPlan config={config} />
       <section className="settings-section">
         <h3>Privacy</h3>
         <p>
-          Typed notes, preparation, semantic marks, and editable ink are saved. This build does not
-          access the microphone or send notes to an AI provider.
+          Typed notes, preparation, semantic marks, editable ink, and live transcription text are
+          saved. When you start live transcription, your microphone audio streams to OpenAI for
+          processing. Sideleaf does not save audio recordings.
+        </p>
+        <p>
+          OpenAI may retain content in abuse monitoring logs for up to 30 days by default, or longer
+          when required by law or necessary to prevent harm. See{' '}
+          <a
+            href="https://developers.openai.com/api/docs/guides/your-data"
+            target="_blank"
+            rel="noreferrer"
+          >
+            OpenAI’s data retention policy
+          </a>
+          .
         </p>
         <p>
           Offline drafts are stored in this browser. Other people using this browser profile may be
@@ -70,35 +85,6 @@ export function Settings({
           This export includes excluded notes and saved revision history. Exclusion from a normal
           export does not delete source text.
         </small>
-      </section>
-      <section className="settings-section">
-        <h3>Plans</h3>
-        <div className="plan-row">
-          <div>
-            <strong>Free</strong>
-            <p>
-              Unlimited ordinary notes
-              <br />
-              {config.freeMinutes} assisted minutes per month
-              <br />
-              {config.meetingMinutes} minutes per assisted meeting
-            </p>
-          </div>
-          <div>
-            <strong>Pro · ${config.price}/month</strong>
-            <p>
-              Unlimited assisted minutes
-              <br />
-              One active assisted session
-              <br />
-              Configurable test price
-            </p>
-          </div>
-        </div>
-        <div className="notice">
-          Plan preview. Capture, usage metering, checkout, and purchases are not enabled in this
-          build. No payment is collected.
-        </div>
       </section>
       <Recovery userId={userId} />
       <section className="settings-section danger-zone">

@@ -1,89 +1,106 @@
 # Hosting and secrets for Sideleaf
 
-Updated 2026-09-07. The hosted notebook beta is live at [sideleaf.vercel.app](https://sideleaf.vercel.app), using the owner's selected Vercel and Supabase projects. The Vercel Sideleaf team/project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf). Supabase project `qhgzilyanroqomafhybg` has the private eight-table notebook schema migrated. Restricted database TLS, live production API checks and desktop/phone browser workflows have passed.
+Updated September 7, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). The Vercel Sideleaf project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf), and Supabase project `qhgzilyanroqomafhybg` hosts the private application database. Browser capture passed a hosted test with synthetic microphone input, real OpenAI transcription and Supabase persistence. Stripe billing is implemented, with sandbox credentials/testing still pending. Current evidence is recorded in [status.md](status.md).
 
 ## One shared backend
 
-Vercel hosts both the built React web app and the Node/Hono API. There is no separate Render service in the selected architecture. Supabase hosts PostgreSQL; Better Auth owns Sideleaf accounts and sessions. The web app uses same-origin `/api/*` routes. The future native app will use the same HTTPS API and identity system.
+Vercel hosts the built React web app and the Node/Hono API. Supabase hosts PostgreSQL; Better Auth owns Sideleaf accounts and sessions. The web app uses same-origin `/api/*` routes. Browser microphone audio connects directly to OpenAI over WebRTC, while the server authorizes the session and observes final transcript events. The future native app will use the same authenticated HTTPS API.
 
 ```mermaid
 flowchart LR
-  Web[Web app / PWA on Vercel] --> API[Hono API on Vercel]
-  Native[Future iOS / iPadOS sync] --> API
+  Web[Web app on Vercel] --> API[Hono API on Vercel]
+  Native[Future iOS and iPadOS sync] --> API
   Secrets[Vercel server environment] --> API
   API --> DB[Supabase Postgres]
-  API -. planned .-> Files[Private Supabase Storage]
-  API -. planned .-> AI[OpenAI]
+  Web -->|Microphone WebRTC| AI[OpenAI Realtime]
+  API -->|Session setup and text observer| AI
+  API -->|Configured web billing| Stripe[Stripe]
+  Cron[Supabase watchdog and Vault] -->|Authenticated cleanup| API
+  API -. planned artifacts .-> Files[Private Supabase Storage]
 ```
 
-The native app runs on the device and is distributed separately through Apple's tooling. It needs the public API URL and the signed-in user's session. It does not need a separate backend or copies of shared provider credentials. Native sign-in and synchronization remain unfinished, so notes do not yet flow between the web app and the native source.
+The browser OpenAI path has passed the hosted synthetic-microphone test described below. Stripe still needs a real sandbox test. The native app is distributed through Apple's tooling and only needs the public API URL and its user's session credentials. Native sign-in and synchronization remain unfinished; notes do not yet synchronize with the native source.
 
-## Current deployment
+## Components and execution
 
-| Component                | Responsibility and status                                                         |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| GitHub                   | Source repository and Vercel project linkage                                      |
-| Vercel static output     | Vite build in `dist/web`, served from the Sideleaf project                        |
-| Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                      |
-| Supabase Postgres        | Private `sideleaf` schema with auth data, notebooks, pages and revisions          |
-| Better Auth              | Password hashing, sessions, optional Google login and database-backed rate limits |
-| Supabase private Storage | Planned editable ink artifacts and permitted attachments; not integrated          |
-| OpenAI                   | Planned transcription and text processing; no key or adapter connected            |
+| Component                | Responsibility and status                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| GitHub                   | Source repository and Vercel project linkage                                          |
+| Vercel static output     | Vite build under `dist/web`                                                           |
+| Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                          |
+| Supabase Postgres        | 15 private application tables for auth, notes, capture, usage and billing             |
+| Better Auth              | Password hashing, sessions and shared database-backed authentication limits           |
+| Supabase pg_cron/pg_net  | 30-second capture cleanup calls using a Vault-held bearer secret                      |
+| OpenAI                   | `gpt-4o-mini-transcribe` WebRTC, observer and saved text verified September 7, 2026     |
+| Stripe                   | Implemented Checkout, portal, webhooks and entitlements; sandbox setup pending        |
+| Supabase private Storage | Planned editable ink artifacts and permitted attachments                              |
 
-The root [vercel.json](../vercel.json) is active. It builds the frontend and routes API requests to the local Node function. API responses have private cache controls; the service worker caches static assets, not auth or notebook API responses. The former [external-proxy template](../deploy/vercel.example.json) is historical and inactive. [Vite hosting](https://vercel.com/docs/frameworks/frontend/vite), [Node function entry points](https://vercel.com/docs/functions/runtimes/node-js).
+The root [vercel.json](../vercel.json) is active and requests a 300-second function duration. Capture intentionally rolls its observer at about 225 seconds, with a disclosed reconnect gap. API responses are not cached by the service worker or CDN. The former [external-proxy template](../deploy/vercel.example.json) is historical and inactive. There is no separate Render service.
 
-The API reuses one initialization promise per warm instance, opens a bounded `pg.Pool`, checks auth-table access, and attaches Vercel's pool lifecycle support. Failed initialization can retry later. The selected database route is Supabase's transaction pooler on port 6543, with unnamed SQL queries rather than named prepared statements. Verified TLS passed through the actual restricted connection using the official root certificate bundled at `server/certs/supabase-root-2021.crt`. The certificate is public trust material, not a secret. [Vercel pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres).
+The API reuses one initialization promise and a bounded `pg.Pool` per warm instance, verifies auth-table access, and attaches Vercel's pool lifecycle support. Failed initialization can retry. Supavisor transaction pooling on port 6543 uses unnamed SQL queries. Verified TLS passed using the public Supabase root certificate bundled at `server/certs/supabase-root-2021.crt`. This certificate is public trust material.
 
-The public origin is `https://sideleaf.vercel.app`. `APP_ORIGIN` can pin that address; the server can also derive the production or preview origin from Vercel's environment. Cookies, callbacks and mutation-origin checks must match it. Preview and production currently share the beta database, so either deployment can affect the same accounts and notes. Isolate preview data and credentials before wider production use. The current function duration is 30 seconds, appropriate for this notebook API. Live audio transport has not been validated against this deployment's execution limits.
+The public origin is `https://sideleaf.vercel.app`. `APP_ORIGIN` can pin it, or the server can derive the relevant Vercel environment origin. Cookies, callbacks and mutation-origin checks must agree. Stripe's webhook uses a verified signature instead of browser Origin/session authentication. Watchdog maintenance uses its separate bearer secret.
 
-## Where credentials live
+Preview and production currently share the beta database. Either deployment can affect the same accounts and notes. Billing records include their Stripe test/live mode so sandbox purchases cannot grant live entitlements, but that is not full data isolation. Use separate preview data and credentials before wider production use.
 
-The database and authentication secrets are configured in the Sideleaf Vercel project's server environment settings. They are injected into the API process, not copied into the browser bundle or native app. A separate secret-management service is unnecessary for this initial single backend. Preview isolation is still outstanding as noted above. Environment changes need a new deployment to reach the running code. [Vercel environment variables](https://vercel.com/docs/environment-variables).
+## Credential locations
 
-| Variable                                    | Secret?                          | Location and purpose                                                                                     |
-| ------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                              | Yes                              | Vercel server environment; restricted `sideleaf_runtime` transaction-pooler connection with verified TLS |
-| `BETTER_AUTH_SECRET`                        | Yes                              | Vercel server environment; stable random authentication secret of at least 32 characters                 |
-| `MIGRATION_DATABASE_URL`                    | Yes                              | Administrative migration session only; not required by the deployed function                             |
-| `ENABLE_PASSWORD_AUTH`                      | No                               | Vercel server environment; `true` explicitly enables the selected email/password beta                    |
-| `APP_ORIGIN`                                | No                               | Exact public HTTPS origin; optional when derived from the correct Vercel environment                     |
-| `NODE_ENV`                                  | No                               | `production` in the deployed function                                                                    |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Client ID public; secret private | Optional server-side Google login configuration; not verified                                            |
-| `OPENAI_API_KEY`                            | Yes                              | Future Vercel server variable; not connected and not sufficient to enable capture                        |
-| `SUPABASE_SECRET_KEY`                       | Yes                              | Future server credential if private Storage needs it; never exposed to clients                           |
-| `SUPABASE_URL`                              | No                               | Future Storage configuration; no Supabase client connection is required by the present UI                |
+Shared credentials belong in the Sideleaf Vercel project's server environment. The API receives them at runtime; they are not copied into browser or native bundles. Environment changes require a new deployment. The watchdog additionally keeps a matching secret in Supabase Vault, referenced by the scheduled SQL rather than embedded as a literal value.
 
-Neither `VITE_*` variables nor native configuration files are safe locations for shared secrets. The native Keychain will store the user's own session credentials. Rotating a provider key should only require replacing the backend secret and redeploying, without rebuilding either client. [OpenAI authentication](https://developers.openai.com/api/reference/overview#authentication).
+| Variable                                        | Secret?                   | Location and purpose                                                                 |
+| ----------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                  | Yes                       | Vercel restricted `sideleaf_runtime` connection with verified TLS                    |
+| `BETTER_AUTH_SECRET`                            | Yes                       | Stable Vercel authentication secret, at least 32 random characters                   |
+| `MIGRATION_DATABASE_URL`                        | Yes                       | Administrative migration session only, outside request-serving configuration         |
+| `OPENAI_API_KEY`                                | Yes                       | Vercel server credential for Realtime setup, observer and termination                |
+| `CAPTURE_CRON_SECRET`                           | Yes                       | Vercel maintenance credential, matching Vault secret `sideleaf_capture_cron`         |
+| `CAPTURE_ENABLED`                               | No                        | Explicit capture enable flag, default false                                          |
+| `CAPTURE_WATCHDOG_ENABLED`                      | No                        | Explicit supervisor enable flag, default false; actual freshness is checked at Start |
+| `STRIPE_SECRET_KEY`                             | Yes                       | Server Stripe credential for the configured test/live mode                           |
+| `STRIPE_WEBHOOK_SECRET`                         | Yes                       | Signing secret for the exact Stripe endpoint/environment                             |
+| `STRIPE_PRICE_PRO_MONTHLY`                      | No                        | Server-selected monthly Price ID                                                     |
+| `STRIPE_MODE`                                   | No                        | `test` for sandbox, `live` for production billing                                    |
+| `STRIPE_BILLING_ENABLED`                        | No                        | Explicitly enables purchases only after setup; default false                         |
+| `ENABLE_PASSWORD_AUTH`                          | No                        | Explicit email/password beta opt-in                                                  |
+| `APP_ORIGIN`                                    | No                        | Exact public HTTPS origin or environment-derived value                               |
+| `NODE_ENV`                                      | No                        | `production` for the hosted function                                                 |
+| `FREE_MONTHLY_MINUTES` / `FREE_MEETING_MINUTES` | No                        | Free connected-time limits, default 120/60                                           |
+| `PRO_PRICE_USD`                                 | No                        | Displayed and validated monthly price, default 29                                    |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`     | ID public, secret private | Optional Google login configuration; unverified                                      |
+| `SUPABASE_SECRET_KEY` / `SUPABASE_URL`          | Key private, URL public   | Future private-Storage configuration, not needed by current clients                  |
 
-Supabase API keys and PostgreSQL passwords serve different interfaces. The current backend uses a database connection and Better Auth, not Supabase Auth. No Supabase publishable or privileged API key belongs in either client for this architecture. Privileged Storage keys can bypass RLS and must stay on the server if later introduced. [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
+Do not put shared credentials in `VITE_*`, native configuration files or Xcode build settings. Native Keychain storage is for the user's own session. Rotating a provider credential should require updating the backend and redeploying, without rebuilding clients. Hosted Stripe Checkout redirects do not require a browser publishable key.
 
-## Database access and migrations
+The configured Windows launchers are `scripts/set-openai-key.cmd` and `scripts/set-stripe-key.cmd`. They prompt with hidden input and pass credentials through Vercel CLI stdin, creating no secret file. The Stripe launcher supports `preview`; the shared `scripts/set-provider-secret.mjs` accepts an explicit target and supports OpenAI, Stripe server and Stripe webhook secrets. Default target is production. Preview credentials must match preview billing mode. The launchers do not create products, publish legal terms, enable charges or prove a working provider integration.
 
-Hosted tables live in `sideleaf`, excluded from the Data API. Schema and table access are revoked from `PUBLIC`, `anon` and `authenticated`. The runtime login has schema usage and table CRUD permissions, no schema ownership or DDL permissions, and no RLS bypass. Its role-level search path resolves the existing unqualified Drizzle tables to `sideleaf`.
+Stripe CLI 1.50.10 is installed at `%LOCALAPPDATA%\Sideleaf\cli\stripe\stripe.exe`. `scripts/connect-stripe.cmd` opens its browser sign-in for the `sideleaf` profile and keeps CLI configuration at `%LOCALAPPDATA%\Sideleaf\secrets\stripe-cli.toml`, outside the OneDrive checkout. The owner needs to create a Stripe account before signing in; billing activation remains pending. CLI account authorization is separate from Vercel's server key and endpoint signing secret.
 
-RLS permits the backend role to operate on these rows. It is not per-user database isolation: Hono and Better Auth enforce ownership on every notebook operation. A future direct Supabase client would require a separately designed and tested authorization model. [Supabase API exposure and RLS](https://supabase.com/docs/guides/api/securing-your-api).
+Supabase API keys and PostgreSQL passwords serve different interfaces. Current clients call Sideleaf's API and do not need Supabase Auth or a Supabase SDK. Future privileged Storage credentials remain server-only because they can bypass client RLS boundaries.
 
-Hosted changes use reviewed files under [supabase/migrations](../supabase/migrations). Both migration histories are aligned: `20260907130025` creates the private notebook schema, and `20260907131718` revokes execution of the provider's `public.rls_auto_enable` function from `PUBLIC`, `anon` and `authenticated` while preserving its event trigger. The runtime connection returned `current_user=sideleaf_runtime`, `current_schema=sideleaf`, and successfully resolved `auth_user`; schema creation and anonymous schema usage were denied. The remaining Supabase advisor warning concerns leaked-password protection in unused Supabase Auth, not Sideleaf's Better Auth login. This is not a complete security audit.
+## Database, migrations and watchdog
 
-Administrative migration credentials remain separate from runtime credentials. The Vercel entry disables startup migration, so requests cannot create or alter tables. Local development continues using PGlite and `server/migrations/001_notebook.sql`; local accounts and drafts are not automatically imported into the hosted beta.
+Hosted tables live in the private `sideleaf` schema, excluded from the Data API. `PUBLIC`, `anon` and `authenticated` have no schema/table access. The runtime login has schema usage and table CRUD, no schema ownership/DDL, and no RLS bypass. Its role-level search path resolves Drizzle tables to `sideleaf`. RLS allows the backend role; Hono and Better Auth enforce per-account ownership.
 
-## Local and Mac continuation
+All five reviewed files under [supabase/migrations](../supabase/migrations) are applied and migration history is aligned. The original two migrations established notebook/auth storage and restricted the provider RLS helper. Three newer migrations add seven capture/billing tables, install watchdog extensions, and place the newly installed pg_net extension under `extensions` with restricted net access. The advisor reports only the existing leaked-password warning for unused Supabase Auth. This does not establish a complete security audit.
 
-The Windows checkout is in OneDrive. Keep real development secrets outside that synced folder or inject them into the API process environment. Local scripts still load the repository `.env` when present; an external-secret-file loader has not been added. The example contains names and blank values only. Git, Docker and the explicit `.vercelignore` exclude local databases, real environment files and generated service-link metadata, with the blank example remaining trackable in Git. Vercel CLI upload exclusions are configured separately from Git ignores. The clean deployment file manifest was checked for local database and secret files.
+The runtime connection has verified its role, schema and auth table and demonstrated denial of schema creation and anonymous schema use. Production startup runs no migrations. Local development uses PGlite with `server/migrations/001_notebook.sql`; local accounts and drafts are not automatically imported into the hosted database.
 
-On the Mac, continue from the same GitHub repository. Node 24 runs the web and API development tools. Native work uses `native/project.yml`, XcodeGen and Xcode 26 or later, following [native/README.md](../native/README.md). Compile and test the native app, connect its authentication and revision-based synchronization to the shared API, then validate it on physical hardware. This client needs no Supabase Auth setup or Supabase SDK. Configure a signing team and complete the native app icon packaging for distribution. Do not transfer production database or OpenAI credentials into the Xcode project.
+[supabase/capture-watchdog.sql](../supabase/capture-watchdog.sql) schedules cleanup every 30 seconds and removes its cron history after seven days. A Vault reference supplies the maintenance bearer secret. The application role has no cron/net schema privileges. Capture Start requires health within 90 seconds, and unsuccessful or backlogged cleanup does not refresh the healthy timestamp. Timing, metering and rollout checks are detailed in [live-capture.md](live-capture.md).
 
-## Verification and remaining work
+## Local development and Mac continuation
 
-- Verified: restricted database TLS, schema resolution, schema-creation denial, anonymous schema-usage denial, aligned migrations and server-only Vercel secrets.
-- Verified: production build and all 62 automated tests, comprising 56 Vitest, five local Chromium end-to-end tests and one built-PWA test including teardown.
-- Verified: production and preview API readiness, with HTTP 200 from `/api/health` and configuration reporting `development:false`, `passwordAuth:true` and `capture.ready:false`.
-- Verified in production: two synthetic accounts using secure-cookie sign-up/sign-in, notebook creation, Supabase page persistence after a fresh sign-in, idempotent retry, stale-edit 409, cross-account read/history/export/delete 404, cross-origin mutation 403, exports, history and deletion. Capture returns the intended 503. Both synthetic accounts were deleted and old sessions returned 401.
-- Verified in hosted Chromium at 1440x1000 and 390x844: sign-up, blank-page creation, title/text editing, saved state and retained content after reload. No console warnings or errors occurred. Synthetic UI accounts were cleaned up. Screenshots are under `%TEMP%/sideleaf-hosted-qa/`, outside committed source.
-- Hosted offline behavior has not been retested; the offline end-to-end evidence is from the local built app.
-- Add verified email delivery and password recovery before treating the beta login as a complete production account lifecycle.
-- Connect private Storage through owner-checked routes and verify access and deletion across accounts.
-- Compile the native source on Mac, implement authentication and sync, and validate on physical iPad/Pencil hardware.
-- Implement OpenAI capture and text adapters, usage enforcement, disconnect recovery and reviewed disclosure. Adding a key alone does not implement transcription.
+Keep real development secrets outside the OneDrive checkout or inject them into the process environment. Local scripts still load repository `.env` when present; an external-secret-file loader is not implemented. Git, Docker and `.vercelignore` exclude local databases, real environment files and generated service metadata. The blank `.env.example` remains trackable. Vercel upload exclusions are separate from Git ignores; the earlier clean deployment manifest was checked.
 
-No audio recordings belong in Supabase tables, buckets or application files. The planned audio pipeline uses bounded transient buffers. OpenAI processing and retention are addressed in [privacy.md](privacy.md), separately from notebook storage. The hosted notebook beta does not yet request microphone access.
+Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. Native work uses `native/project.yml`, XcodeGen and Xcode 26 or later, following [native/README.md](../native/README.md). Compile, complete signing/app icons, connect authentication and revision-based synchronization, and test real iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
+
+## Verification and outstanding work
+
+The current pass has 106 passing Vitest tests and 13 passing browser tests, including capture/billing boundary tests and focus-mode repair. A real Supabase integration probe with a fake provider returned 200 for capture start/stop and cleaned its exclusively synthetic records. This confirms the production database adapter path. It does not verify actual OpenAI speech processing.
+
+The hosted OpenAI tests passed using `gpt-4o-mini-transcribe` and Chromium synthetic microphone input on September 7, 2026. They verified WebRTC, the server observer/SSE stream, saved transcript text in actual Supabase, Pause with all microphone tracks ended and the server session finalized, one complete approximately 225-second rollover with new saved text, Resume and network-loss cleanup. Synthetic accounts were deleted. Physical microphone, native capture and repeated long-session reliability remain unvalidated. See [status.md](status.md) for the tested deployment and evidence locations.
+
+Stripe needs credentials, environment-specific Price/webhook/portal configuration and a real sandbox purchase before production activation. See [billing.md](billing.md) for its activation contract.
+
+The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The built-PWA offline/export test passed again in this development pass; hosted offline behavior has not been freshly retested. Three capture UI checks also passed after the mobile margin/footer adjustment. Email verification/password recovery, native compilation/sync, private artifact Storage and cloud coaching remain separate work.
+
+Sideleaf does not save audio recordings. Browser WebRTC audio and OpenAI's published provider retention are different parts of that disclosure. The implemented flow and remaining verification are documented in [privacy.md](privacy.md).

@@ -53,10 +53,11 @@ test('real account, preparation, note persistence, selection, source changes and
     'Understand the problem before proposing a solution.',
   );
   await page.getByLabel('Participants', { exact: true }).fill('Alex, Jamie (synthetic)');
-  await page.getByRole('checkbox').check();
+  const preparation = page.getByRole('dialog', { name: 'Prepare a meeting', exact: true });
+  await preparation.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Check capture readiness' }).click();
   await expect(
-    page.getByText('Live transcription is not connected in this build.', { exact: false }),
+    preparation.getByText('Live transcription is not connected in this build.', { exact: false }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Save preparation' }).click();
   await waitSaved(page);
@@ -84,8 +85,9 @@ test('ink circles stay ordinary ink in Write, Mark performs geometric text selec
   await waitSaved(page);
   await page.getByRole('button', { name: 'Write', exact: true }).click();
   const target = page.locator('[data-start]').filter({ hasText: /^priorities$/ });
-  const bounds = (await target.boundingBox())!;
   async function circle() {
+    await target.scrollIntoViewIfNeeded();
+    const bounds = (await target.boundingBox())!;
     const cx = bounds.x + bounds.width / 2,
       cy = bounds.y + bounds.height / 2,
       rx = bounds.width / 2 + 6,

@@ -10,6 +10,8 @@ import {
   bigint,
 } from 'drizzle-orm/pg-core';
 import type { NotebookDocument } from '../shared/domain.js';
+export { billingCustomers, billingSubscriptions, billingEvents } from './billing-schema.js';
+export { captureSessions, captureUsage, captureWatchdog, meetingTranscripts } from './capture-schema.js';
 
 export const rateLimit = pgTable('auth_rate_limit', {
   id: text().primaryKey(),

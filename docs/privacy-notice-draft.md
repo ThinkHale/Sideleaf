@@ -1,25 +1,27 @@
 # Cloud transcription notice draft
 
-Drafted 2026-09-07 for product discussion and legal review. This is proposed copy for the future cloud transcription feature, not a complete Privacy Policy or Terms of Service, and not a statement that the feature is live today.
+Updated September 7, 2026 for the implemented WebRTC transcription flow. The hosted browser flow passed a test with synthetic microphone input, real OpenAI transcription and saved text in Supabase. This is product copy for review, not a complete published Privacy Policy or Terms of Service. Physical microphone/native validation and the final retention/deletion policy remain separate work.
 
 ## Proposed Privacy Policy paragraph
 
-When you start cloud transcription, Sideleaf captures microphone audio and sends it to OpenAI to turn speech into text. Sideleaf processes audio in temporary buffers and does not save audio recordings in its application storage or provide audio playback. OpenAI may retain content in abuse-monitoring logs, generally for up to 30 days, with longer retention for legal requirements or protection from harm. Provider handling depends on the endpoint and account configuration. Sideleaf saves your transcript and notebook content so you can review and edit it later.
+When you start live transcription, Sideleaf captures your device's microphone and streams audio directly to OpenAI to turn speech into text. Sideleaf does not save audio recordings or provide audio playback. Sideleaf saves finalized transcript text, your notebook content and session timing so you can review your notes and usage. OpenAI may retain API content in abuse-monitoring logs for up to 30 days by default, with legal or safety exceptions. API content is not used for training unless the API account opts in.
 
-Source for the provider-retention portion: [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data). Confirm against the actual deployment before publication. Link the final policy to Sideleaf's defined transcript retention, deletion and backup practices; do not promise immediate provider or backup erasure.
+The provider portion follows [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data). Confirm the actual endpoint and account configuration before publishing. State the final transcript, billing and backup retention policies separately. Do not promise immediate provider or backup erasure.
 
-## Proposed notice immediately before cloud capture
+## Proposed notice before Start
 
-Your microphone audio will be sent to OpenAI for live transcription. Sideleaf will save the transcript, but will not save an audio recording. OpenAI may temporarily retain processing data under its retention policy. Make sure everyone participating knows transcription is active and that you have any required permission before starting.
+Your microphone audio streams to OpenAI for live transcription. Sideleaf saves the transcript, not audio recordings. OpenAI may retain API content for abuse monitoring for up to 30 days by default, with legal or safety exceptions. Inform everyone participating and obtain any required permission before starting.
 
-Place a link to the full audio/privacy notice alongside the deliberate Start action. Show the selected local or cloud mode accurately. Keep the microphone indicator and one-tap Pause visible throughout capture.
+Connected transcription time, including brief setup, counts toward your allowance. Pause releases the microphone and stops the usage clock. A brief connection interruption can leave a gap in the transcript; Sideleaf does not save audio to fill that gap later.
 
-## Terms and review notes
+Suggested acknowledgement: “I have informed participants and obtained the consent required for this meeting.”
 
-The Terms should explain acceptable use and participant-permission responsibilities and link to the Privacy Policy. The Privacy Policy should identify the data collected, processing purpose, provider, retention, and user controls. Repeat the relevant facts in the start flow so someone can make an informed choice at the moment audio is transmitted.
+Keep the current microphone status and Pause/Stop controls visible during capture, including in focus mode. Link the final full policy from the start flow. Transcription is for what this device's microphone can hear; this build does not capture arbitrary remote-call or system audio.
 
-Avoid the blanket claim that Sideleaf is not recording: microphone capture and transmission still occur, even without saved recordings. Avoid saying audio is never stored anywhere, or that all OpenAI data is automatically deleted after a fixed short period. The final wording must describe observed deployment behavior.
+## Terms and remaining review
 
-Terms acceptance should not be presented as a substitute for required participant consent. Have counsel review the notices and consent flow for the actual launch jurisdictions and customer use cases. No conclusion about a particular recording/interception law is made here. The FTC emphasizes that privacy promises must align with service-provider practices and continuing oversight: [service-provider guidance](https://www.ftc.gov/business-guidance/blog/2018/04/lesson-blu-make-right-privacy-security-calls-when-working-service-providers).
+The Terms should explain acceptable use and participant-permission responsibilities. The Privacy Policy should identify the collected information, processing purpose, providers, retention and user controls. Repeat the key facts at the Start action so users can make an informed choice before transmission.
 
-Publication depends on a working and tested capture pipeline, verified provider configuration, completed stored-text retention/deletion disclosures, and reviewed final copy. No notice was published or accepted on anyone's behalf.
+Do not say “we never record” without explaining microphone capture. Do not say audio is never stored anywhere, or that every copy is deleted after a fixed period. Terms acceptance does not replace participant permission where it is required. Final wording should be reviewed for the actual launch jurisdictions and customer use cases; this document makes no conclusion about a particular recording or interception law.
+
+The code has configuration gates, microphone controls, server-confirmed text persistence, account-scoped access and a session watchdog. The September 7 hosted real-provider tests also verified Pause/Resume, one full rollover and network-loss cleanup, and deleted their synthetic accounts. They did not validate a physical microphone, native capture, repeated long-meeting reliability or provider-internal retention. Final publication still needs defined backup and stored-text retention and reviewed customer-facing copy. This change does not publish legal terms or accept them on anyone's behalf.

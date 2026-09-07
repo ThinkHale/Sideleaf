@@ -1,118 +1,87 @@
 # Implementation status
 
-## Plan and assumptions
+Updated September 7, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). Browser live transcription passed a hosted Chromium test using synthetic microphone input, the real OpenAI service and actual Supabase persistence. This development pass also adds usage enforcement, Stripe subscription infrastructure and repaired browser focus mode. Stripe credentials and a real sandbox purchase are still pending. Physical microphone and native capture validation remain separate work.
 
-This repository was empty on 2026-09-06. The first verifiable slice is a real authenticated notebook, not a transcription simulation. Development uses embedded PostgreSQL (PGlite). The owner selected and authorized the Vercel plus Supabase notebook beta on 2026-09-07, including deployment through the signed-in CLIs. The current cloud setup and remaining verification are recorded below.
+## Implemented product behavior
 
-- [x] Establish React/Vite, TypeScript API, shared schemas, migrations, Better Auth.
-- [x] Persist notebooks, editable pages, version history, preparation, ink and semantic annotations.
-- [x] Implement offline manual editing, autosave, conflict recovery, search and exports.
-- [x] Inspect desktop/phone/iPad browser layouts and exercise real API workflows.
-- [x] Establish native SwiftUI/PencilKit source and an on-device readiness probe.
-- [x] Document privacy, billing, API contracts, evidence and exact next slices.
+- Authenticated notebooks, editable pages, preparation, web ink, semantic annotations and immutable version history.
+- Offline manual editing, autosave, conflict recovery, library search and exports.
+- Sideleaf branding from the supplied logo package.
+- Browser focus mode with a centered, responsive notebook layout and working controls.
+- Browser microphone permission and consent flow, WebRTC transcription connection, interim text, server-confirmed saved transcript segments, Pause/Resume/Stop and connection rollover.
+- Server-authoritative monthly connected-time accounting, per-meeting Free allowance, one active assisted session per account, connection-attempt throttling and watchdog cleanup.
+- Stripe hosted Checkout, customer portal, signed raw-body webhooks, idempotent authoritative subscription reconciliation, mode-isolated entitlements, cancellation, payment failure, refund/dispute handling and account-deletion safeguards.
+- Settings for the actual plan, usage, reset instant and billing availability. Paid controls stay unavailable until provider configuration is complete and explicitly enabled.
+- Native SwiftUI/PencilKit source and an on-device readiness probe. Native compilation, capture, purchases and synchronization remain unfinished.
 
-The product name is Sideleaf, with a configurable runtime display name. The supplied logo package is integrated into navigation, authentication, loading states, web app icons, and native source assets. Native app icon packaging and Xcode validation remain pending. Initial accounts and notes contain no real client data. Synthetic example content is opt-in and explicitly labeled. Cloud capture must remain unavailable until audio-retention prerequisites are verified for the deployment account. No audio recording fallback is permitted.
+Connected transcription time includes brief setup after the provider connection becomes available. Paused time is excluded. Sideleaf saves text rather than audio recordings; there is no audio playback, audio file, audio Storage bucket or offline audio upload queue. See [live capture](live-capture.md), [billing](billing.md) and [audio privacy](privacy.md) for the exact boundaries.
 
-## Cloud beta setup
+## Hosted services and migrations
 
-- [x] Confirm the signed-in Vercel and Supabase CLIs and select the owner's Sideleaf projects.
-- [x] Create/link the Sideleaf Vercel team project to `ThinkHale/Sideleaf`, with assigned domain `sideleaf.vercel.app`.
-- [x] Configure one Vercel project for both the Vite frontend and Hono Node API; the earlier separate Render API is no longer the deployment target.
-- [x] Migrate the eight-table private `sideleaf` schema in Supabase project `qhgzilyanroqomafhybg`.
-- [x] Establish the restricted `sideleaf_runtime` database role with table CRUD, RLS and a role-level schema search path. Keep administrative migrations outside request startup.
-- [x] Add explicit hosted email/password beta opt-in and Better Auth database-backed authentication rate limits.
-- [x] Keep the shared database and authentication secrets in Vercel's server environment. No shared provider keys belong in browser or native code.
-- [x] Verify TLS through the actual restricted Supavisor transaction-pooler connection using the official bundled root certificate. Confirm `current_user=sideleaf_runtime`, `current_schema=sideleaf` and `auth_user` resolution, with schema creation and anonymous schema usage denied.
-- [x] Apply both hosted migrations and align migration history, including revoking public execution of `public.rls_auto_enable` while preserving its event trigger.
-- [x] Verify the corrected Vercel preview: `/api/health` returns 200; `/api/config` reports `development:false`, `passwordAuth:true` and `capture.ready:false`.
-- [x] Complete the production deployment at `https://sideleaf.vercel.app`, deployment `dpl_BrxFMhpdHpDezQp6mVtU6GYNYcAa`.
-- [x] Verify live production sign-up/sign-in, persistence, retry/conflict handling, account isolation, origin protection, exports, history and deletion. Delete the synthetic test accounts and verify old sessions are rejected.
-- [x] Verify hosted desktop/phone UI sign-up, page creation, editing, saved state and reload persistence without console warnings or errors. Clean up synthetic UI accounts.
-- [x] Complete the built-PWA test including runner teardown. All 62 automated tests passed.
-- [x] Fix note text clipping after width changes and verify full text remains visible through desktop, phone and iPad resizing.
-- [x] Add explicit `.vercelignore` exclusions and audit the replacement deployment to confirm no local database or secret files were uploaded. Superseded private uploads were removed.
+The owner's selected Vercel Sideleaf project hosts both the Vite frontend and Hono Node API and is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf). Better Auth owns accounts and sessions; Supabase provides PostgreSQL. Email/password login is explicitly enabled for this beta. Google OAuth remains optional and unverified.
 
-Better Auth remains responsible for identity and sessions; Supabase provides PostgreSQL. The private schema is excluded from the Data API. Its RLS policy permits the backend role, while Hono enforces individual ownership. The remaining Supabase advisor warning concerns leaked-password protection in unused Supabase Auth. Private Storage, OpenAI processing and native synchronization remain future work. Preview and production share the beta database, so preview code can affect the same accounts and notes.
+Supabase project `qhgzilyanroqomafhybg` now has 15 application tables in the private `sideleaf` schema. Five reviewed migrations are applied and aligned:
 
-## Automated and database verification
+1. `20260907130025`: private notebook/auth schema and restricted backend role.
+2. `20260907131718`: remove public execution grants from the provider's RLS helper while retaining its event trigger.
+3. `20260907145716`: seven capture, usage, watchdog and billing tables with backend-only grants, RLS and indexes.
+4. `20260907151500`: install the watchdog's pg_cron/pg_net extensions and restrict cron/net access.
+5. `20260907152500`: recreate the newly installed pg_net extension under `extensions` and retain restricted net access.
+
+The runtime role `sideleaf_runtime` has schema usage and table CRUD, cannot create schema objects or bypass RLS, and uses the intended role-level search path. The private schema is excluded from the Data API. Hono and Better Auth enforce individual ownership. The database advisor now reports only the existing leaked-password warning for unused Supabase Auth. This is not a complete security audit.
+
+The selected database connection uses the Supavisor transaction pooler with certificate-verified TLS and a bounded reusable pool. Production startup does not apply DDL. The Vercel function requests a 300-second execution duration; capture rolls its connection at about 225 seconds. The Supabase watchdog runs every 30 seconds using a secret from Vault. New starts require recent healthy supervision.
+
+Preview and production still share the beta database. Stripe test/live records are isolated by mode, but notebook and account data are not isolated between preview and production. Separate those databases and credentials before wider production use.
+
+## Verification completed
+
+The current automated checks total **120 passing checks: 106 Vitest tests, 13 browser end-to-end tests and one built-PWA test**. Real-provider checks below are additional evidence.
 
 - TypeScript/Vite production build passed.
-- 56 Vitest tests passed in the cloud deployment pass, covering the notebook contracts and API behavior plus cloud configuration, verified transport requirements, explicit migrations, Vercel initialization and authentication configuration.
-- 5 local Chromium end-to-end tests passed again. These cover the manual notebook, preparation, geometric marks, follow-up edits, source correction, export, offline reconnect and two-tab recovery.
-- The built-PWA test passed for a complete offline reload, recovered text synchronization and private-text exclusion from PDF, including clean runner teardown.
-- The actual restricted Supabase transaction-pooler connection passed certificate verification, resolved the intended role/schema/table, and denied schema creation and anonymous schema usage. Both migrations are aligned.
-- Production and preview passed health and production-configuration checks, with email beta login enabled and capture disabled.
-- Live production passed secure-cookie sign-up/sign-in for two synthetic accounts, notebook creation, Supabase page persistence after a fresh sign-in, idempotent retry, stale-edit 409, cross-account read/history/export/delete 404, cross-origin mutation 403, export/history/deletion and the intended capture 503. Both accounts were deleted and old sessions returned 401.
-- Hosted Chromium UI checks at 1440x1000 and 390x844 passed sign-up, blank-page creation, title/text editing, saved state and retained content after reload, with no console warnings or errors. Synthetic UI accounts were cleaned up. Screenshots are under `%TEMP%/sideleaf-hosted-qa/`: `signup-desktop.png`, `notebook-desktop.png` and `notebook-phone.png`.
-- All 62 automated tests passed: 56 Vitest, five local Chromium end-to-end tests and one built-PWA test. The hosted API and browser checks above are additional checks. Hosted offline behavior was not retested.
+- **106 Vitest tests passed**, covering notebook/API contracts, authentication, cloud initialization, capture controls and metering, transcript provenance, watchdog handling, browser capture state and Stripe billing boundaries.
+- **13 browser end-to-end tests passed**, including the notebook workflows, focus-mode layout and billing UI behavior.
+- The built-PWA test passed again in this pass, covering offline reload, recovered text synchronization and private-text exclusion from PDF. Hosted offline behavior has not been freshly retested.
+- Three capture UI checks passed after the mobile margin/footer adjustment.
+- Actual Supabase runtime TLS, role/schema/table resolution and denial of schema creation and anonymous schema access passed.
+- A real Supabase capture integration probe created an exclusively synthetic account/notebook/page, used the production database adapter with a fake provider, and returned 200 for capture start and stop. Reservation completed in about 0.55 seconds. The synthetic account and dependent records were deleted. This verifies the database transaction path, not the real OpenAI transport.
+- A separate hosted Chromium test with synthetic microphone input passed real OpenAI WebRTC transcription using `gpt-4o-mini-transcribe`, the server observer/SSE stream, saved transcript text in Supabase and Pause cleanup. All microphone tracks ended, the server session reached a terminal state and the synthetic account was deleted.
+- A second hosted real-provider test passed the approximately 225-second connection rollover, saved new transcript text after reconnection, Pause, Resume and network-loss cleanup. Its synthetic account was also removed.
+- All five hosted migrations are aligned. The advisor result is described above.
+- The existing hosted notebook passed secure-cookie sign-up/sign-in, persistence after a fresh sign-in, idempotent retries, stale-edit 409 responses, cross-account 404s, cross-origin mutation rejection, exports, history and deletion. Synthetic accounts were cleaned up and old sessions were rejected.
+- Earlier hosted Chromium checks at desktop and phone sizes passed page creation, editing, saved state and reload persistence without console warnings or errors.
+- Prior deployment upload verification confirmed no local database or real secret files in the replacement deployment; explicit Git, Docker and Vercel exclusions remain in place.
 
-## Earlier visual verification
+## Provider verification
 
-- Desktop 1536x1024, phone 390x844, iPad portrait 820x1180 and landscape 1180x820 browser dimensions exercised. These are browser tests, not native devices.
-- In-app browser inspected with a synthetic local account. Image concept and rendered screenshot compared through image inspection. Exported A4 PDF rendered and visually inspected.
-- Final fresh in-app navigation produced no new warning/error console entries. An earlier development hot-reload error cleared on reload and did not recur in that interaction.
-- The earlier production dependency audit reported zero vulnerabilities. These checks do not establish a complete security audit.
-- Concept fidelity, repaired mobile title wrapping, and deliberate functional differences are recorded in [design-review.md](design-review.md).
+### OpenAI
 
-## Integration and hardware boundary
+On September 7, 2026, the hosted test passed with `gpt-4o-mini-transcribe` on deployment `dpl_BwDrqTrnTLS3bGUqKDUgJw6xmSnj`. Chromium supplied a synthetic microphone fixture through the same WebRTC path used by the app. The real OpenAI service produced text, the server observer persisted it in Supabase, and the browser received confirmed saved transcript segments. Pause ended every microphone track and finalized the server session. The synthetic account and its dependent records were removed afterward. Local screenshots are in `C:/Users/think/AppData/Local/Temp/sideleaf-live-capture-1814f810-4516-45a1-b8f5-a3c439834731`.
 
-The current runnable deliverable is the ordinary-note and meeting-preparation slice. It does not provide a real assisted meeting yet. Live audio, transcripts, text-AI coaching, summaries, completed meetings, billing, usage enforcement and native synchronization remain code work, not merely missing credentials.
+A second hosted test on September 7 passed a full approximately 225-second rollover, new provider text saved after reconnection, Pause, Resume and network-loss cleanup. The original connection settled 226,658 milliseconds, and the new session produced confirmed saved text. Its synthetic account was removed. Evidence is in `C:/Users/think/AppData/Local/Temp/sideleaf-live-capture-dd76f155-38c7-4e7b-9610-3f586913da43`.
 
-Native source is uncompiled. XcodeBuildMCP reported `spawn xcrun ENOENT`. No Mac/Xcode, simulator or physical Pencil/iPad run was possible. The readiness probe follows current Apple APIs but actual device and asset results have not been observed. Google OAuth, Docker/CI, provider retention guarantees and payment verification were not exercised. The Supabase schema, restricted runtime TLS, live notebook API workflows and hosted desktop/phone UI are verified.
+These tests verify the hosted provider account, transport, saved-text path and the exercised cleanup/reconnection cases. Physical microphone behavior, native capture and repeated long-meeting reliability have not been validated. One successful rollover test is not a long-duration reliability guarantee. The synthetic audio fixture is test input, not an audio recording saved by Sideleaf. The runtime key remains server-side. Provider-internal retention still follows the account's controls and published policies rather than a guarantee established by these tests.
 
-## Exact continuation checklist
+### Stripe
 
-### 1. Finish hosted notebook verification, then live capture
+The backend and UI are implemented. No real Stripe sandbox checkout, webhook endpoint delivery, portal session, live product/price or charge has been verified. Credentials and environment-specific resources must be configured before testing. Only enable live purchases after sandbox checkout, recovery, cancellation, refund/dispute and re-subscription checks pass. StoreKit and Google Play Billing remain native implementation work with a shared Sideleaf entitlement model.
 
-- [x] Verify hosted email/password sign-up/sign-in and the notebook API workflows listed above.
-- [x] Complete hosted desktop/phone UI verification.
-- [ ] Retest offline behavior on the hosted origin and exercise rate-limit behavior across separate function instances.
-- [ ] Add email verification delivery and password recovery before treating the beta account flow as a complete production account lifecycle.
-- [ ] Isolate preview and production databases and credentials; both currently use the shared beta database. Verify callback origins and rollback behavior. Preserve existing local data; no automatic local-to-cloud migration is implemented.
+## Remaining product work
 
-- [ ] Add meeting/session/lease/usage tables and indexes, plus per-user stream and job authorization.
-- [ ] Finish the OpenAI endpoint/account review and implement one streaming adapter with an enforced readiness gate. The owner's 2026-09-07 clarification permits disclosed provider retention while Sideleaf saves no audio. ZDR is optional under this direction. Implement the reviewed Privacy Policy/start-flow disclosure and verify application buffering and provider settings. Deepgram remains earlier research, not an integration.
-- [ ] Implement bounded PCM AudioWorklet frames and server streaming relay with backpressure. No MediaRecorder, saved Blob, disk buffer or offline audio queue.
-- [ ] Add explicit capture readiness/consent/permission states, pause/resume/end, track cleanup, silence handling, app suspension and timestamped interruption gaps.
-- [ ] Persist finalized transcript segments incrementally using stable event IDs and revisions, show interim text separately, deduplicate reconnects and make finalization idempotent.
-- [ ] Test real microphone and provider start/pause/resume/end/reopen before claiming live transcription.
+- Add email verification delivery and password recovery.
+- Isolate preview/production databases and credentials; retest hosted offline recovery and cross-instance behavior as part of the next release validation.
+- Complete the remaining physical-device, repeated long-session and Stripe checks above and review customer-facing retention, participant-permission, backup and deletion disclosures.
+- Build coaching, source-grounded suggestions, structured summaries, actions and unsent follow-up drafts. The present transcription path does not implement those features.
+- Extend semantic marking to transcript revisions and define targeted redaction across current data and history.
+- Add private Supabase Storage endpoints for permitted PencilKit artifacts and attachments with ownership, retention and deletion verification. Audio storage is excluded.
+- Validate the proposed Pro economics and operating costs. Add pagination, server-side search and history-management policies before scaling large libraries.
+- Compile native source on a Mac with Xcode, complete signing/app-icon packaging and run native anchor tests.
+- Connect native authentication, revision-based synchronization, editable ink artifacts, capture and verified store purchases. Validate actual Apple Pencil, palm rejection, rotation, background interruptions and offline conflicts on physical hardware.
 
-### 2. Coaching and completed output
+## Known boundaries
 
-- [ ] Add a real swappable text-AI adapter, explicit configuration errors, compact context assembly and background jobs.
-- [ ] Validate structured results and source quotes; reject stale jobs and deduplicate requests; treat all meeting content as untrusted data.
-- [ ] Connect objectives, unanswered questions, concerns, decisions and annotations to debounced coaching with two visible suggestions and no repeat spam.
-- [ ] Add versioned editable summaries, source navigation, action-owner/deadline uncertainty, selective exclusions and optional unsent follow-up email drafts.
-- [ ] Extend marks to transcript revisions; test wrapped, zoomed, scrolled and corrected transcript text without moving active writing/selection.
+Native source is uncompiled on this Windows host; no simulator or physical iPad/Pencil capture was verified. There is no handwritten-text recognition/search, collaborative CRDT, cloud coaching or automatic summary generation. The library still downloads owned pages for client-side search. Web undo is held in memory for the open page and does not cover every margin edit. PDF reflows typed text and places handwriting separately.
 
-### 3. Billing and production privacy
+If initial library loading fails while the API restarts, a reload is still required once the API is ready; the current Retry sync action retries pending edits rather than an empty initial read. Page-document exports and meeting-transcript exports remain separate. Deleting a note block does not erase its historical revisions.
 
-- [x] Select Supabase Postgres and migrate the private notebook schema while retaining Better Auth, Hono and conflict handling.
-- [ ] Implement private Supabase Storage routes for permitted artifacts, with ownership checks, retention and deletion verification. No audio storage is permitted.
-
-- [ ] Implement server-authoritative monthly periods, reset timestamps, active-time intervals, one-account session leases, reconnect-safe metering and free-limit finalization.
-- [ ] Implement Stripe Checkout/portal and signed, idempotent webhook reconciliation including cancellation, failed payment and refund handling.
-- [ ] Implement StoreKit verified transactions, restore purchases, backend notification validation and duplicate-subscription protection after reviewing target storefront rules.
-- [ ] Add selective redaction across current data and revision history. Current exclusion and block deletion do not erase historical text.
-- [ ] Validate CI; define backup retention/deletion policy and storage encryption. Hosted ownership, PostgreSQL TLS and role/schema access checks have passed. Docker is an optional alternate runtime, not a prerequisite for the selected Vercel deployment.
-- [ ] Load-test large libraries and add pagination/search indexes, history compaction policy and operational metadata without content logging.
-
-### 4. Native completion
-
-- [ ] Continue from the same GitHub repository on Mac. Generate the Xcode project with XcodeGen and compile with Xcode 26 or later; run native anchor tests and resolve SDK/concurrency diagnostics.
-- [ ] Complete signing and native app-icon packaging; keep all shared provider secrets in Vercel, with only user session credentials stored in the native Keychain.
-- [ ] Complete native selection/actions/undo and preparation; connect the shared multi-block and sync contracts through authenticated APIs. No Supabase Auth or Supabase SDK setup is required in the native app.
-- [ ] Define native PKDrawing/portable artifact upload endpoints and coordinate metadata; preserve native editability across web viewing.
-- [ ] Add a bounded SpeechAnalyzer capture pipeline with preflight device/language/assets checks and no remote fallback.
-- [ ] Connect bounded native entitlements and cross-channel purchases.
-- [ ] Validate real Apple Pencil, palm rejection, orientation/reflow, background interruption, offline notes and cross-client conflicts on physical hardware.
-
-## Known limitations in this slice
-
-No handwritten-text recognition/search; no collaborative CRDT; client-side library search loads all pages; snapshot history is not compacted. Native selection and annotation undo are incomplete. Web undo history is in-memory per open page and does not include every margin edit. Native preview PNG/PKDrawing artifacts are not yet synchronized to web. PDF reflows typed text and puts handwriting on a separate section/page.
-
-If the API is restarting during initial library loading, reload the page once the API is ready. The current Retry sync control flushes pending edits but does not retry the initial library read when no edits are pending.
-
-Hosted password signup is disabled by default and enabled for the selected beta only with `ENABLE_PASSWORD_AUTH=true`. Email verification delivery and password recovery are unfinished. Cloud capture cannot be activated with an environment flag in this slice. The no-audio behavior is verified by absence of an input path, not by a live-provider retention test.
-
-Current deployment and credential locations are documented in [hosting-secrets.md](hosting-secrets.md). The notebook beta deployment and the live API/browser checks above are complete at [sideleaf.vercel.app](https://sideleaf.vercel.app). OpenAI, private artifact storage and native completion remain the separate implementation work listed above.
+Credential and deployment details are in [hosting-secrets.md](hosting-secrets.md). The verification scope above distinguishes the tested browser path from remaining device and purchase work.

@@ -1,5 +1,7 @@
 # Acceptance tests and evidence
 
+The September 7, 2026 implementation and hosted verification results are recorded in [status.md](status.md), including the 106-test suite, browser/focus checks, built-PWA check, production Supabase integration and hosted real OpenAI transcription with synthetic microphone input. The dated results below preserve the earlier baseline and its narrower scope.
+
 Recorded 2026-09-06 on Windows, Node 24.18.0. No test results below represent a Mac simulator, physical iPad, Apple Pencil, live microphone provider, real billing account, or production database run.
 
 After the Sideleaf rename, `npm run check` passed again with 23 tests, and the built-PWA offline/export test passed again. The in-app browser showed Sideleaf as its title and navigation name, reopened the existing account's example page, and reported no new warning/error console entries after the final reload. The earlier screenshots and title entry below document the original development-name review.

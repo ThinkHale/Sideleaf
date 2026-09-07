@@ -1,11 +1,13 @@
-import { Flag, Check, X, Clock3, MicOff, ShieldCheck, ChevronRight, Star } from 'lucide-react';
+import { Flag, Check, X, Clock3, Mic, MicOff, ShieldCheck, ChevronRight, Star } from 'lucide-react';
 import type { Annotation, Page } from '../../shared/domain';
 export function Margin({
   page,
+  microphoneLive,
   onPrepare,
   onChange,
 }: {
   page: Page;
+  microphoneLive: boolean;
   onPrepare: () => void;
   onChange: (p: Page) => void;
 }) {
@@ -179,9 +181,9 @@ export function Margin({
           <ShieldCheck size={19} />
           Privacy by design.
         </p>
-        <small>
-          <MicOff size={14} />
-          Your microphone is off.
+        <small aria-live="polite">
+          {microphoneLive ? <Mic size={14} /> : <MicOff size={14} />}
+          {microphoneLive ? 'Your microphone is live.' : 'Your microphone is off.'}
         </small>
       </div>
     </aside>
