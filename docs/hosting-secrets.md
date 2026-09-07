@@ -1,14 +1,14 @@
 # Hosting and secrets for Sideleaf
 
-Recommendation recorded 2026-09-07. This describes the deployment target. No cloud resources have been provisioned or connected yet.
+Updated 2026-09-07 after the owner proposed GitHub Pages or Vercel. Vercel is the preferred frontend host of those options. This describes the deployment target. No cloud resources have been provisioned or connected yet.
 
 ## One shared backend
 
-Use one paid Render web service to run the existing Node/Hono API and serve the built React web app. Both clients use the same HTTPS API and account identity. Supabase supplies Postgres and private file storage. OpenAI is called by the backend for the planned cloud AI features.
+For the deployment requiring the fewest code changes, use Vercel for the React frontend and one paid Render web service for the existing Node/Hono API. Both clients use the same API and account identity. Supabase supplies Postgres and private file storage. OpenAI is called by the backend for the planned cloud AI features. The earlier single-Render recommendation remains an alternative because Hono can also serve the web files itself.
 
 ```mermaid
 flowchart LR
-  Web[Web app / PWA] --> API[Sideleaf API on Render]
+  Web[Web app / PWA on Vercel] --> API[Sideleaf API on Render]
   Native[iOS / iPadOS app] --> API
   API --> DB[Supabase Postgres]
   API --> Files[Private Supabase Storage]
@@ -23,12 +23,25 @@ The native app runs on the device and is distributed separately. It needs the sh
 | Service | Responsibility |
 | --- | --- |
 | GitHub | Source code and deployment history |
-| Render | Built web app, API, authentication, future streaming relay and AI calls |
+| Vercel | Built web app and ordinary same-origin API proxy |
+| Render | API, authentication, future streaming relay and AI calls |
 | Supabase Postgres | Users, sessions, notebooks, page revisions and future finalized transcripts |
 | Supabase private Storage | Future drawing artifacts, previews and permitted attachments |
 | OpenAI | Future cloud transcription and text processing |
 
-The current Hono production entry point already serves `dist/web`, so one deployment can serve `/` and `/api/*` from the same origin. Begin with Render's HTTPS address; attach a chosen app subdomain later. The domain has not been selected or purchased. Render supports the existing Dockerfile, custom domains and WebSockets. Paid compute is recommended for meetings because its free web services can sleep between uses. [Render web services](https://render.com/docs/web-services), [Docker](https://render.com/docs/docker), [domains](https://render.com/docs/custom-domains), [WebSockets](https://render.com/docs/websocket), [free service limitations](https://render.com/docs/free).
+The current Hono production entry point already serves `dist/web`, so a single Render deployment could serve `/` and `/api/*` from the same origin. In the preferred Vercel frontend arrangement, use Vercel's public app origin and proxy ordinary `/api/*` requests to Render. A chosen app subdomain can be attached later. The domain has not been selected or purchased. Render supports the existing Dockerfile, custom domains and WebSockets. Paid compute is recommended for meetings because its free web services can sleep between uses. [Render web services](https://render.com/docs/web-services), [Docker](https://render.com/docs/docker), [domains](https://render.com/docs/custom-domains), [WebSockets](https://render.com/docs/websocket), [free service limitations](https://render.com/docs/free).
+
+## Vercel deployment preparation
+
+[deploy/vercel.example.json](../deploy/vercel.example.json) records the Vite build output, API rewrite, private-response cache controls and service-worker cache header. It is an inactive template with a reserved invalid API hostname. An actual API address and working production login are required before activating it as root `vercel.json`. Publishing only the static files would leave `/api/config`, sign-in and note saves unavailable. [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite), [external rewrites](https://vercel.com/docs/routing/rewrites).
+
+Preserve the `/api` prefix in the proxy destination. Set the backend's `APP_ORIGIN` to the exact public Vercel application origin and use that origin for authentication callbacks. Validate cookies, redirects, private responses and account isolation through the deployed proxy. Preview deployments need separate development credentials and an explicitly configured allowed origin.
+
+The template disables rewrite caching on `/api/*`; the API also emits `Cache-Control: no-store`. External proxy requests have a documented timeout, so future meeting audio should connect directly to an authenticated streaming service with its own short-lived connection authorization. Do not send a long-lived provider key to either client. [Rewrite behavior](https://vercel.com/docs/routing/rewrites), [external request timeout](https://vercel.com/docs/errors/router_external_target_handshake_error).
+
+Vercel can host Hono directly as well. Moving the API there requires an exported app entry point, separate schema migrations, appropriate database pool lifecycle and validation of the combined frontend/API build. It is not configured by this template. Vercel's current WebSocket support is in public beta and connections remain subject to function-duration limits. If the API moves to Vercel, its secrets move to that project's server environment settings. [Hono on Vercel](https://vercel.com/docs/frameworks/backend/hono), [pooling](https://vercel.com/kb/guide/connection-pooling-with-functions), [WebSockets](https://vercel.com/docs/functions/websockets).
+
+GitHub Pages is static hosting and its rules exclude commercial SaaS hosting, so it is not the Sideleaf app target. Vercel's Hobby plan is for personal non-commercial use; select an appropriate plan before commercial launch. [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits), [Vercel Hobby rules](https://vercel.com/docs/plans/hobby).
 
 Keep durable data in Supabase. Deployments must not depend on the Render container filesystem retaining notes or files. Sideleaf's planned audio pipeline uses bounded memory buffers and saves no audio recordings; disclosure of OpenAI processing and retention is covered separately in [privacy.md](privacy.md).
 
