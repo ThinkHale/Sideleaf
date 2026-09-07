@@ -20,6 +20,17 @@ xcodebuild -project Sideleaf.xcodeproj -scheme Sideleaf -destination 'generic/pl
 
 For tests, choose an actually installed iPad simulator identifier from `xcrun simctl list devices` and pass it as the destination to `xcodebuild test`. No simulator name is assumed. Configure your own signing team before a physical-device run. XcodeGen generation itself was not executable here.
 
+## Mac continuation and shared services
+
+Start from `native/project.yml`; XcodeGen creates `Sideleaf.xcodeproj`, which is not checked in. The current target is iPad-only (`TARGETED_DEVICE_FAMILY: '2'`). iPhone support needs its own layout and device validation before enabling that device family.
+
+The hosted API origin is `https://sideleaf.vercel.app`, with authenticated routes under `/api`. The native source still uses local models and does not yet sign in or synchronize with the hosted notebook. Connect Better Auth sessions and the revision protocol before adding cloud capture or paid access.
+
+- [Hosting and secrets](../docs/hosting-secrets.md) describes the shared API and deployment. Database, OpenAI, Stripe and authentication server secrets stay in Vercel; the native app stores only its user's session credentials securely.
+- [Live capture](../docs/live-capture.md) documents the working browser WebRTC flow, server-confirmed transcripts, usage limits, consent and cleanup. Native cloud capture remains to be implemented and validated. The existing on-device readiness probe does not provide this integration.
+- [Billing](../docs/billing.md) documents server-authoritative access and Stripe web purchases. Stripe account configuration and sandbox verification are pending. StoreKit purchase verification and native entitlement integration remain unfinished.
+- [Implementation status](../docs/status.md) records completed browser/provider checks and remaining native work. Passing web checks does not establish that the Swift source builds or runs.
+
 ## Required before calling it a working native client
 
 - Compile and resolve any Swift 6 isolation, SwiftData, UIKit or SDK availability diagnostics.
