@@ -2,7 +2,7 @@
 
 The September 7, 2026 implementation and hosted verification results are recorded in [status.md](status.md), including the 106-test suite, browser/focus checks, built-PWA check, production Supabase integration and hosted real OpenAI transcription with synthetic microphone input. The dated results below preserve the earlier baseline and its narrower scope.
 
-Recorded 2026-09-06 on Windows, Node 24.18.0. No test results below represent a Mac simulator, physical iPad, Apple Pencil, live microphone provider, real billing account, or production database run.
+Recorded 2026-09-06 on Windows, Node 24.18.0. No test results below represent a Mac simulator, physical iPhone or iPad, Apple Pencil, live microphone provider, real billing account, or production database run.
 
 After the Sideleaf rename, `npm run check` passed again with 23 tests, and the built-PWA offline/export test passed again. The in-app browser showed Sideleaf as its title and navigation name, reopened the existing account's example page, and reported no new warning/error console entries after the final reload. The earlier screenshots and title entry below document the original development-name review.
 
@@ -57,7 +57,7 @@ The in-app browser was available and used first for visible inspection once the 
 
 ## Not tested or not implemented
 
-Real prepare/start/pause/resume/end/reopen transcription; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; server usage leases and billing webhooks; payments/restore purchases; native XCTest execution and runtime UI; live Pencil hardware; external PostgreSQL TLS; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
+Real prepare/start/pause/resume/end/reopen transcription; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; server usage leases and billing webhooks; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad and live Pencil hardware; external PostgreSQL TLS; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
 
 These are acceptance gaps, not passes. The exact next implementation steps are in `status.md`.
 
@@ -83,3 +83,10 @@ The concept-to-render comparison, copy differences, and intentional design devia
 - `npm run check` passed the production web build and all 106 unit/integration tests. No React or CSS changed in this update, so the 2026-09-07 interface screenshots remain the relevant rendered logo review.
 - Xcode 26.6 passed the iPad simulator build and build-for-testing. An unsigned generic iOS Release archive passed, contains marketing version `1.0`, build `2`, bundle ID `com.thinkhale.sideleaf`, `UIDeviceFamily` value `2`, and a compiled 1024 x 1024 `AppIcon` rendition.
 - The local Playwright workflows did not execute on this Mac because their pinned Chromium headless-shell binary is not installed. The in-app browser also could not initialize in this agent environment, so installed PWA appearance and masked Home Screen appearance remain manual visual checks.
+
+### Universal iPhone and iPad target, 2026-09-08
+
+- Xcode 26.6 passed compile-only builds for shutdown iPhone 17 Pro and iPad Pro simulator destinations. The iPhone build-for-testing product also compiled, including the phone touch-input policy test; XCTest execution and runtime UI remain unvalidated because no simulator was booted.
+- An unsigned generic iOS Release archive passed. Its app bundle contains marketing version `1.0`, build `3`, bundle ID `com.thinkhale.sideleaf`, minimum OS `26.0`, `UIDeviceFamily` values `[1, 2]`, and compiled iPhone and iPad app icons.
+- The archive declares portrait orientation for iPhone and portrait, upside-down portrait, and both landscape orientations for iPad. Its only required device capability is `arm64`.
+- Compact-width navigation, controls, branding, sheets, and paper sizing were adapted for iPhone. Phone ink accepts touch input; iPad keeps Pencil-only ink so fingers continue to scroll.

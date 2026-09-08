@@ -17,4 +17,8 @@ final class AnchorTests: XCTestCase {
         XCTAssertTrue(LassoGeometry.contains(CGPoint(x: 30, y: 20), polygon: polygon))
         XCTAssertFalse(LassoGeometry.contains(CGPoint(x: 90, y: 20), polygon: polygon))
     }
+    func testPhoneDrawingAcceptsTouchInput() {
+        XCTAssertEqual(PaperInputPolicy.drawingPolicy(for: .phone), .anyInput)
+        XCTAssertEqual(PaperInputPolicy.drawingPolicy(for: .pad), .pencilOnly)
+    }
 }

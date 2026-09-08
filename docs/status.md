@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated September 8, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). Browser live transcription passed a hosted Chromium test using synthetic microphone input, the real OpenAI service and actual Supabase persistence. The native iPad app and test products now compile with Xcode 26.6 under the registered `com.thinkhale.sideleaf` identifier. Stripe credentials and a real sandbox purchase are still pending. Physical microphone and native runtime validation remain separate work.
+Updated September 8, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). Browser live transcription passed a hosted Chromium test using synthetic microphone input, the real OpenAI service and actual Supabase persistence. Native build `3` targets iPhone and iPad on iOS/iPadOS 26 or later, and the app and test products compile with Xcode 26.6 under the registered `com.thinkhale.sideleaf` identifier. Stripe credentials and a real sandbox purchase are still pending. Physical microphone and native runtime validation remain separate work.
 
 ## Implemented product behavior
 
@@ -12,7 +12,7 @@ Updated September 8, 2026. Sideleaf's authenticated notebook beta is hosted at [
 - Server-authoritative monthly connected-time accounting, per-meeting Free allowance, one active assisted session per account, connection-attempt throttling and watchdog cleanup.
 - Stripe hosted Checkout, customer portal, signed raw-body webhooks, idempotent authoritative subscription reconciliation, mode-isolated entitlements, cancellation, payment failure, refund/dispute handling and account-deletion safeguards.
 - Settings for the actual plan, usage, reset instant and billing availability. Paid controls stay unavailable until provider configuration is complete and explicitly enabled.
-- Native SwiftUI/PencilKit source and an on-device readiness probe. The iPad app and unit-test products compile; runtime validation, capture, purchases and synchronization remain unfinished.
+- Native SwiftUI/PencilKit source and an on-device readiness probe. The universal iPhone/iPad app and unit-test products compile; runtime validation, capture, purchases and synchronization remain unfinished.
 
 Connected transcription time includes brief setup after the provider connection becomes available. Paused time is excluded. Sideleaf saves text rather than audio recordings; there is no audio playback, audio file, audio Storage bucket or offline audio upload queue. See [live capture](live-capture.md), [billing](billing.md) and [audio privacy](privacy.md) for the exact boundaries.
 
@@ -75,12 +75,12 @@ The backend and UI are implemented. No real Stripe sandbox checkout, webhook end
 - Extend semantic marking to transcript revisions and define targeted redaction across current data and history.
 - Add private Supabase Storage endpoints for permitted PencilKit artifacts and attachments with ownership, retention and deletion verification. Audio storage is excluded.
 - Validate the proposed Pro economics and operating costs. Add pagination, server-side search and history-management policies before scaling large libraries.
-- Complete native signing and App Store upload validation, and run the compiled anchor tests on an iPad simulator.
-- Connect native authentication, revision-based synchronization, editable ink artifacts, capture and verified store purchases. Validate actual Apple Pencil, palm rejection, rotation, background interruptions and offline conflicts on physical hardware.
+- Complete native signing and App Store upload validation, and run the compiled anchor tests on iPhone and iPad simulators.
+- Connect native authentication, revision-based synchronization, editable ink artifacts, capture and verified store purchases. Validate iPhone touch ink and compact navigation, plus actual Apple Pencil, palm rejection, iPad rotation, background interruptions and offline conflicts on physical hardware.
 
 ## Known boundaries
 
-Native source and unit-test products compile with Xcode 26.6, but no simulator or physical iPad/Pencil runtime was verified. There is no handwritten-text recognition/search, collaborative CRDT, cloud coaching or automatic summary generation. The library still downloads owned pages for client-side search. Web undo is held in memory for the open page and does not cover every margin edit. PDF reflows typed text and places handwriting separately.
+Native source and unit-test products compile with Xcode 26.6, but no iPhone/iPad simulator or physical device/Pencil runtime was verified. The target uses device family `1,2`; iPhone supports portrait and iPad supports all four orientations, with iOS/iPadOS 26 as the minimum. There is no handwritten-text recognition/search, collaborative CRDT, cloud coaching or automatic summary generation. The library still downloads owned pages for client-side search. Web undo is held in memory for the open page and does not cover every margin edit. PDF reflows typed text and places handwriting separately.
 
 If initial library loading fails while the API restarts, a reload is still required once the API is ready; the current Retry sync action retries pending edits rather than an empty initial read. Page-document exports and meeting-transcript exports remain separate. Deleting a note block does not erase its historical revisions.
 

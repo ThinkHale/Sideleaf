@@ -2,12 +2,17 @@ import SwiftUI
 
 /// Original supplied artwork remains full color and keeps its intrinsic proportions.
 struct SideleafWordmark: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     var body: some View {
         Image("SideleafWordmark")
             .renderingMode(.original)
             .resizable()
             .scaledToFit()
-            .frame(width: 150, height: 50)
+            .frame(
+                width: horizontalSizeClass == .compact ? 110 : 150,
+                height: horizontalSizeClass == .compact ? 36 : 50
+            )
             .background(Color.sideleafPaper, in: RoundedRectangle(cornerRadius: 6))
             .accessibilityLabel("Sideleaf")
     }

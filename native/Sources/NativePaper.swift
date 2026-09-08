@@ -26,11 +26,24 @@ struct NativePaper: UIViewRepresentable {
         view.text.isEditable = tool == .type
         view.text.isSelectable = tool == .type || tool == .select
         view.canvas.isUserInteractionEnabled = tool == .write || tool == .erase
+        view.canvas.drawingPolicy = PaperInputPolicy.drawingPolicy(for: UIDevice.current.userInterfaceIdiom)
         view.canvas.tool = tool == .erase ? PKEraserTool(.vector) : PKInkingTool(.pen, color: UIColor.label, width: 2)
         view.mark.isUserInteractionEnabled = tool == .mark
         if context.coordinator.undoSignal != undoSignal { view.canvas.undoManager?.undo(); context.coordinator.undoSignal = undoSignal }
         if context.coordinator.redoSignal != redoSignal { view.canvas.undoManager?.redo(); context.coordinator.redoSignal = redoSignal }
         view.refreshHighlights(page.annotations)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: PaperView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0 else { return nil }
+        let textHeight = uiView.text.sizeThatFits(
+            CGSize(width: width, height: .greatestFiniteMagnitude)
+        ).height
+        let drawingBounds = uiView.canvas.drawing.bounds
+        let drawingHeight = drawingBounds.isNull ? 0 : drawingBounds.maxY + 24
+        return CGSize(
+            width: width,
+            height: max(1200, max(ceil(textHeight), ceil(drawingHeight)))
+        )
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -91,7 +104,10 @@ final class PaperView: UIView {
         backgroundColor = .clear
         text.backgroundColor = .clear; text.font = .systemFont(ofSize: 20); text.isScrollEnabled = false
         text.textContainerInset = UIEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
-        canvas.backgroundColor = .clear; canvas.isOpaque = false; canvas.drawingPolicy = .pencilOnly; canvas.isScrollEnabled = false
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.drawingPolicy = PaperInputPolicy.drawingPolicy(for: UIDevice.current.userInterfaceIdiom)
+        canvas.isScrollEnabled = false
         mark.backgroundColor = .clear
         [text, canvas, mark].forEach(addSubview)
     }
@@ -116,5 +132,10 @@ final class LassoView: UIView {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { if let touch = touches.first { points.append(touch.location(in: self)) }; onLasso?(points); points = []; setNeedsDisplay() }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { points = []; setNeedsDisplay() }
     override func draw(_ rect: CGRect) { guard let first = points.first else { return }; let path = UIBezierPath(); path.move(to: first); points.dropFirst().forEach { path.addLine(to: $0) }; path.lineWidth = 2; UIColor.systemOlive.setStroke(); path.stroke() }
+}
+enum PaperInputPolicy {
+    static func drawingPolicy(for idiom: UIUserInterfaceIdiom) -> PKCanvasViewDrawingPolicy {
+        idiom == .phone ? .anyInput : .pencilOnly
+    }
 }
 private extension UIColor { static let systemOlive = UIColor(red: 0.41, green: 0.45, blue: 0.33, alpha: 1) }

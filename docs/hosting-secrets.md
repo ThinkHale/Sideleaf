@@ -91,7 +91,7 @@ The runtime connection has verified its role, schema and auth table and demonstr
 
 Keep real development secrets outside the OneDrive checkout or inject them into the process environment. Local scripts still load repository `.env` when present; an external-secret-file loader is not implemented. Git, Docker and `.vercelignore` exclude local databases, real environment files and generated service metadata. The blank `.env.example` remains trackable. Vercel upload exclusions are separate from Git ignores; the earlier clean deployment manifest was checked.
 
-Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). Compile, complete signing and App Store validation, connect authentication and revision-based synchronization, and test real iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
+Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). Build `3` targets iPhone and iPad on iOS/iPadOS 26 or later. Complete signing and App Store validation, connect authentication and revision-based synchronization, and test real iPhone touch behavior plus iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
 
 ## Verification and outstanding work
 
@@ -101,6 +101,6 @@ The hosted OpenAI tests passed using `gpt-4o-mini-transcribe` and Chromium synth
 
 Stripe needs credentials, environment-specific Price/webhook/portal configuration and a real sandbox purchase before production activation. See [billing.md](billing.md) for its activation contract.
 
-The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The built-PWA offline/export test passed again in this development pass; hosted offline behavior has not been freshly retested. Three capture UI checks also passed after the mobile margin/footer adjustment. Email verification/password recovery, native compilation/sync, private artifact Storage and cloud coaching remain separate work.
+The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The built-PWA offline/export test passed again in this development pass; hosted offline behavior has not been freshly retested. Three capture UI checks also passed after the mobile margin/footer adjustment. The native iPhone/iPad app and test products compile without a booted simulator; runtime remains unverified. Email verification/password recovery, native sync, private artifact Storage and cloud coaching remain separate work.
 
 Sideleaf does not save audio recordings. Browser WebRTC audio and OpenAI's published provider retention are different parts of that disclosure. The implemented flow and remaining verification are documented in [privacy.md](privacy.md).

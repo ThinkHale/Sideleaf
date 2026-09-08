@@ -10,7 +10,7 @@ final class OnDeviceReadiness {
 
     func check() async {
         needsAssets = false
-        guard SpeechTranscriber.isAvailable else { message = "This iPad does not support SpeechTranscriber. Remote audio will not be used as a fallback."; return }
+        guard SpeechTranscriber.isAvailable else { message = "This device does not support SpeechTranscriber. Remote audio will not be used as a fallback."; return }
         guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: Locale.current) else { message = "On-device transcription is unavailable for this language. Remote audio will not be used as a fallback."; return }
         locale = supported
         let installed = await SpeechTranscriber.installedLocales
