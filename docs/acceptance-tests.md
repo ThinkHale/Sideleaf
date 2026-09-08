@@ -63,12 +63,23 @@ These are acceptance gaps, not passes. The exact next implementation steps are i
 
 The concept-to-render comparison, copy differences, and intentional design deviations are recorded in [design-review.md](design-review.md).
 
-## Supplied branding verification, 2026-09-07
+## Supplied branding verification
+
+### Interface integration, 2026-09-07
 
 - `npm run build` passed after integration of the supplied artwork.
 - `npm run test:e2e` passed all five Chromium workflows, including desktop, phone and iPad browser dimensions.
 - `npx playwright test --config playwright.pwa.config.ts` passed the built PWA offline reload, recovered draft synchronization and print exclusion workflow.
 - An additional authentication layout check at 1536x1024 and 390x844 found no horizontal overflow or page errors. Visible logo images decoded at their expected original dimensions. Screenshots are `sideleaf-auth-desktop.png` and `sideleaf-auth-phone.png` in `%TEMP%/meeting-notebook-qa`.
 - The current desktop notebook and both authentication screenshots were opened and visually inspected. The supplied lockups retain their proportions and remain legible against the paper surfaces.
-- SHA-256 comparison confirmed that all five files in `public/brand` match their supplied source PNGs byte for byte. The SVG web app icon embeds the original primary PNG on a paper background.
-- Native asset references and original bytes were checked, but native rendering and app icon packaging are not validated on this Windows host.
+- SHA-256 comparison confirmed that the five original interface assets in `public/brand` match their supplied source PNGs byte for byte.
+- Native asset references and original bytes were checked on the original Windows host.
+
+### Platform icon update, 2026-09-08
+
+- SHA-256 comparison confirmed that all seven original files now preserved in `public/brand` match the supplied PNGs byte for byte.
+- The supplied full-bleed dark square is the canonical platform-icon source. The light square is retained as marketing artwork but is not used as an OS icon because its rounded tile and shadow are already baked in.
+- Generated favicon, Apple touch, PWA, and native PNGs have their declared dimensions, sRGB color, and no alpha channel. The PWA manifest and service worker reference the generated web sizes.
+- `npm run check` passed the production web build and all 106 unit/integration tests. No React or CSS changed in this update, so the 2026-09-07 interface screenshots remain the relevant rendered logo review.
+- Xcode 26.6 passed the iPad simulator build and build-for-testing. An unsigned generic iOS Release archive passed, contains marketing version `1.0`, build `2`, bundle ID `com.thinkhale.sideleaf`, `UIDeviceFamily` value `2`, and a compiled 1024 x 1024 `AppIcon` rendition.
+- The local Playwright workflows did not execute on this Mac because their pinned Chromium headless-shell binary is not installed. The in-app browser also could not initialize in this agent environment, so installed PWA appearance and masked Home Screen appearance remain manual visual checks.

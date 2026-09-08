@@ -7,16 +7,16 @@
   "theme_color": "#f2f0e9",
   "icons": [
     {
-      "src": "/brand/sideleaf-app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/brand/sideleaf-pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/brand/sideleaf-icon.png",
-      "sizes": "1254x1254",
+      "src": "/brand/sideleaf-pwa-icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

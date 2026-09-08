@@ -5,14 +5,23 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-guard CommandLine.arguments.count == 3 else {
-    FileHandle.standardError.write(Data("Usage: GenerateAppIcon.swift <source.svg> <output.png>\n".utf8))
+guard (3...4).contains(CommandLine.arguments.count) else {
+    FileHandle.standardError.write(Data("Usage: GenerateAppIcon.swift <source-image> <output.png> [pixel-size]\n".utf8))
     exit(64)
 }
 
 let sourceURL = URL(fileURLWithPath: CommandLine.arguments[1])
 let outputURL = URL(fileURLWithPath: CommandLine.arguments[2])
-let pixelSize = 1024
+let pixelSize: Int
+if CommandLine.arguments.count == 4 {
+    guard let requestedSize = Int(CommandLine.arguments[3]), requestedSize > 0 else {
+        FileHandle.standardError.write(Data("Pixel size must be a positive integer\n".utf8))
+        exit(64)
+    }
+    pixelSize = requestedSize
+} else {
+    pixelSize = 1024
+}
 
 guard let source = NSImage(contentsOf: sourceURL) else {
     FileHandle.standardError.write(Data("Could not load \(sourceURL.path)\n".utf8))

@@ -2,8 +2,12 @@ const CACHE = 'sideleaf-shell-BUILD_VERSION';
 const BRAND_ASSETS = [
   '/brand/sideleaf-logo.png',
   '/brand/sideleaf-logo-tagline.png',
+  '/brand/sideleaf-wordmark.png',
   '/brand/sideleaf-icon.png',
-  '/brand/sideleaf-app-icon.svg',
+  '/brand/sideleaf-favicon-32.png',
+  '/brand/sideleaf-apple-touch-icon-180.png',
+  '/brand/sideleaf-pwa-icon-192.png',
+  '/brand/sideleaf-pwa-icon-512.png',
 ];
 self.addEventListener('install', (event) => {
   event.waitUntil(
