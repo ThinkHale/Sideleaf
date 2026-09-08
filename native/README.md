@@ -10,19 +10,20 @@ Source includes a local notebook library and typed page editor, PencilKit ink se
 
 No distribution `AppIcon` asset is configured. Both supplied square icons are 1254 x 1254 and transparent, so development builds intentionally leave `ASSETCATALOG_COMPILER_APPICON_NAME` blank. Before distribution, prepare an approved 1024 x 1024 opaque PNG from the supplied icon on a solid background, without baked rounded corners, then add and select a valid `AppIcon` asset catalog set. Apple's [app icon configuration documentation](https://developer.apple.com/documentation/xcode/configuring-your-app-icon) describes the single 1024 x 1024 image workflow. Native layout and icon appearance still require simulator and device validation.
 
-On a Mac with Xcode 26 or later and XcodeGen installed:
+The checked-in project opens and builds directly on a Mac with Xcode 26 or later:
 
 ```sh
 cd native
-xcodegen generate
 xcodebuild -project Sideleaf.xcodeproj -scheme Sideleaf -destination 'generic/platform=iOS Simulator' build
 ```
+
+`project.yml` remains the declarative source for project settings. After changing it, install XcodeGen and run `xcodegen generate`, then commit the regenerated `Sideleaf.xcodeproj` files with the specification change.
 
 For tests, choose an actually installed iPad simulator identifier from `xcrun simctl list devices` and pass it as the destination to `xcodebuild test`. No simulator name is assumed. The app target uses the registered bundle identifier `com.thinkhale.sideleaf` with automatic signing for the ThinkHale team. Xcode may need to download or create the matching provisioning profile during the first physical-device build.
 
 ## Mac continuation and shared services
 
-Start from `native/project.yml`; XcodeGen creates `Sideleaf.xcodeproj`, which is not checked in. The current target is iPad-only (`TARGETED_DEVICE_FAMILY: '2'`). iPhone support needs its own layout and device validation before enabling that device family.
+`native/Sideleaf.xcodeproj` is checked in so Xcode, CI and fresh clones can build without a generation step. It is generated from `native/project.yml`, which remains the source of truth. The current target is iPad-only (`TARGETED_DEVICE_FAMILY: '2'`). iPhone support needs its own layout and device validation before enabling that device family.
 
 The hosted API origin is `https://sideleaf.vercel.app`, with authenticated routes under `/api`. The native source still uses local models and does not yet sign in or synchronize with the hosted notebook. Connect Better Auth sessions and the revision protocol before adding cloud capture or paid access.
 

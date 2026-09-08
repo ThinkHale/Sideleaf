@@ -5,6 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify checked-in Xcode project
+        run: |
+          test -f native/Sideleaf.xcodeproj/project.pbxproj
+          test -f native/Sideleaf.xcodeproj/xcshareddata/xcschemes/Sideleaf.xcscheme
       - uses: actions/setup-node@v4
         with:
           node-version: 24

@@ -91,7 +91,7 @@ The runtime connection has verified its role, schema and auth table and demonstr
 
 Keep real development secrets outside the OneDrive checkout or inject them into the process environment. Local scripts still load repository `.env` when present; an external-secret-file loader is not implemented. Git, Docker and `.vercelignore` exclude local databases, real environment files and generated service metadata. The blank `.env.example` remains trackable. Vercel upload exclusions are separate from Git ignores; the earlier clean deployment manifest was checked.
 
-Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. Native work uses `native/project.yml`, XcodeGen and Xcode 26 or later, following [native/README.md](../native/README.md). Compile, complete signing/app icons, connect authentication and revision-based synchronization, and test real iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
+Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). Compile, complete signing/app icons, connect authentication and revision-based synchronization, and test real iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
 
 ## Verification and outstanding work
 

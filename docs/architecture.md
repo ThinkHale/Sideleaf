@@ -62,7 +62,7 @@ Web ink uses editable point arrays on an 800-unit-wide paper coordinate system. 
 
 The native implementation currently has its own local page model. It has not yet been connected to the shared authenticated API. The native project's initial block ID maps to its single page text buffer; migration to multiple shared blocks and cross-client ink interchange is still required. Native undo is currently PencilKit ink undo; native phrase menus and annotation undo remain unfinished. No native capture service is attached to the UI.
 
-Mac continuation starts from the same GitHub repository. Generate `native/Sideleaf.xcodeproj` with XcodeGen, compile with Xcode 26 or later, run the native anchor tests, and complete signing and app-icon packaging as recorded in [native/README.md](../native/README.md). Implement native session handling and revision-based synchronization against the shared Vercel API before claiming cross-device operation. No production provider credentials belong in Xcode or the distributed app.
+Mac continuation starts from the same GitHub repository. The checked-in `native/Sideleaf.xcodeproj` builds directly with Xcode 26 or later; regenerate it with XcodeGen whenever `native/project.yml` changes. Run the native anchor tests and complete signing and app-icon packaging as recorded in [native/README.md](../native/README.md). Implement native session handling and revision-based synchronization against the shared Vercel API before claiming cross-device operation. No production provider credentials belong in Xcode or the distributed app.
 
 ## Live capture and future AI
 

@@ -11,7 +11,8 @@ playwright-report/
 .DS_Store
 native/**/DerivedData/
 native/**/*.xcuserstate
-native/*.xcodeproj/
+native/**/xcuserdata/
+native/**/*.xcuserdatad/
 .vercel/
 supabase/.temp/
 supabase/.branches/

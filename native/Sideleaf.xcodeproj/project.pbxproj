@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131087EC06589A88E3B4C703 /* SideleafBrand.swift */; };
+		4D1B980C33ACA120DE0A0F99 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA06851AEA7427D056BFBDFE /* Assets.xcassets */; };
+		59701EC264B88D824A692109 /* Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB42A03498ECDFBEE55A4B2C /* Anchors.swift */; };
+		65298393AF000032E51890FC /* OnDeviceReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */; };
+		972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */; };
+		9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5931F8401B42ACD8274282E9 /* AnchorTests.swift */; };
+		A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		045620023A5DEB7AC5FD124B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D99282BAF0EE3C46461CC5A9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 83C086EEB8B06133382B335D;
+			remoteInfo = Sideleaf;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		131087EC06589A88E3B4C703 /* SideleafBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafBrand.swift; sourceTree = "<group>"; };
+		2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePaper.swift; sourceTree = "<group>"; };
+		3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Sideleaf.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5931F8401B42ACD8274282E9 /* AnchorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorTests.swift; sourceTree = "<group>"; };
+		AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SideleafTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookApp.swift; sourceTree = "<group>"; };
+		DA06851AEA7427D056BFBDFE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		DB42A03498ECDFBEE55A4B2C /* Anchors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Anchors.swift; sourceTree = "<group>"; };
+		DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceReadiness.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2FBFC5F8F3603883048A374C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */,
+				AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		608AF29DA2726756CBF8D1E1 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				DB42A03498ECDFBEE55A4B2C /* Anchors.swift */,
+				DA06851AEA7427D056BFBDFE /* Assets.xcassets */,
+				2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */,
+				D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */,
+				DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */,
+				131087EC06589A88E3B4C703 /* SideleafBrand.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		BD661642B9D8C6DD6119DFE8 = {
+			isa = PBXGroup;
+			children = (
+				608AF29DA2726756CBF8D1E1 /* Sources */,
+				DA8BD3ED00E630A1063A1120 /* Tests */,
+				2FBFC5F8F3603883048A374C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DA8BD3ED00E630A1063A1120 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				5931F8401B42ACD8274282E9 /* AnchorTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		83C086EEB8B06133382B335D /* Sideleaf */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1C0E21C7F9E5161824CAE05B /* Build configuration list for PBXNativeTarget "Sideleaf" */;
+			buildPhases = (
+				7BBBD99E2D22872DD6DE7FF0 /* Sources */,
+				1677F87285EBF9BD7C1C55DF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Sideleaf;
+			packageProductDependencies = (
+			);
+			productName = Sideleaf;
+			productReference = 3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E2D5612925279B4A36AA07A3 /* SideleafTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E5EA970D96EAD80B06550268 /* Build configuration list for PBXNativeTarget "SideleafTests" */;
+			buildPhases = (
+				D36EE38AA826DADF32F6313D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F2EC80189F9A2117BAF67134 /* PBXTargetDependency */,
+			);
+			name = SideleafTests;
+			packageProductDependencies = (
+			);
+			productName = SideleafTests;
+			productReference = AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D99282BAF0EE3C46461CC5A9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					83C086EEB8B06133382B335D = {
+						DevelopmentTeam = MZ3635323W;
+						ProvisioningStyle = Automatic;
+					};
+					E2D5612925279B4A36AA07A3 = {
+						DevelopmentTeam = MZ3635323W;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = FCEE6862E92303CB4B959954 /* Build configuration list for PBXProject "Sideleaf" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BD661642B9D8C6DD6119DFE8;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2FBFC5F8F3603883048A374C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				83C086EEB8B06133382B335D /* Sideleaf */,
+				E2D5612925279B4A36AA07A3 /* SideleafTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1677F87285EBF9BD7C1C55DF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4D1B980C33ACA120DE0A0F99 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7BBBD99E2D22872DD6DE7FF0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59701EC264B88D824A692109 /* Anchors.swift in Sources */,
+				972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */,
+				A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */,
+				65298393AF000032E51890FC /* OnDeviceReadiness.swift in Sources */,
+				2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D36EE38AA826DADF32F6313D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F2EC80189F9A2117BAF67134 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 83C086EEB8B06133382B335D /* Sideleaf */;
+			targetProxy = 045620023A5DEB7AC5FD124B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		6273C30E4D581A6D21D426FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Live in-person transcription after you confirm participant consent. Audio is not saved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		81578380FCD8E80A64A52B06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.SideleafTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sideleaf.app/Sideleaf";
+			};
+			name = Release;
+		};
+		B7E4299C1620203B0B4201B5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MZ3635323W;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		B7FC701CB85B05102459B89D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = MZ3635323W;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		C5446E11E2A130C91E24F41B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Live in-person transcription after you confirm participant consent. Audio is not saved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+		EFB4483A5CF776A97D70C0B0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.SideleafTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 2;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sideleaf.app/Sideleaf";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1C0E21C7F9E5161824CAE05B /* Build configuration list for PBXNativeTarget "Sideleaf" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6273C30E4D581A6D21D426FF /* Debug */,
+				C5446E11E2A130C91E24F41B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E5EA970D96EAD80B06550268 /* Build configuration list for PBXNativeTarget "SideleafTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EFB4483A5CF776A97D70C0B0 /* Debug */,
+				81578380FCD8E80A64A52B06 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FCEE6862E92303CB4B959954 /* Build configuration list for PBXProject "Sideleaf" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B7E4299C1620203B0B4201B5 /* Debug */,
+				B7FC701CB85B05102459B89D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D99282BAF0EE3C46461CC5A9 /* Project object */;
+}
