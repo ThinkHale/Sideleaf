@@ -75,7 +75,7 @@ The backend and UI are implemented. No real Stripe sandbox checkout, webhook end
 - Extend semantic marking to transcript revisions and define targeted redaction across current data and history.
 - Add private Supabase Storage endpoints for permitted PencilKit artifacts and attachments with ownership, retention and deletion verification. Audio storage is excluded.
 - Validate the proposed Pro economics and operating costs. Add pagination, server-side search and history-management policies before scaling large libraries.
-- Complete native signing/app-icon packaging and run the compiled anchor tests on an iPad simulator.
+- Complete native signing and App Store upload validation, and run the compiled anchor tests on an iPad simulator.
 - Connect native authentication, revision-based synchronization, editable ink artifacts, capture and verified store purchases. Validate actual Apple Pencil, palm rejection, rotation, background interruptions and offline conflicts on physical hardware.
 
 ## Known boundaries

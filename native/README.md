@@ -8,7 +8,7 @@ Source includes a local notebook library and typed page editor, PencilKit ink se
 
 `Sources/Assets.xcassets` bundles unmodified copies of the supplied artwork as `SideleafSymbol` (`Sideleaf icon 2.png`, 1254 x 1254), `SideleafWordmark` (`Sideleaf wordmark.png`, 2172 x 724), and `SideleafLockup` (`Sideleaf logo - no slogan.png`, 2172 x 724). The library toolbar uses the wordmark and the empty page uses the lockup, with original proportions and colors, accessible product labels, and a light paper background for contrast. The source PNGs retain their transparency and original bytes. `project.yml` includes the asset catalog through its existing `Sources` path.
 
-No distribution `AppIcon` asset is configured. Both supplied square icons are 1254 x 1254 and transparent, so development builds intentionally leave `ASSETCATALOG_COMPILER_APPICON_NAME` blank. Before distribution, prepare an approved 1024 x 1024 opaque PNG from the supplied icon on a solid background, without baked rounded corners, then add and select a valid `AppIcon` asset catalog set. Apple's [app icon configuration documentation](https://developer.apple.com/documentation/xcode/configuring-your-app-icon) describes the single 1024 x 1024 image workflow. Native layout and icon appearance still require simulator and device validation.
+The distribution `AppIcon` contains a 1024 x 1024 opaque PNG rendered from the existing `public/brand/sideleaf-app-icon.svg`. It preserves the supplied primary mark and the established paper `#fffdf8` background without baked rounded corners. `ASSETCATALOG_COMPILER_APPICON_NAME` selects this set for Debug and Release builds. After changing the source artwork, regenerate the RGB icon from `native/` with `swift Scripts/GenerateAppIcon.swift ../public/brand/sideleaf-app-icon.svg Sources/Assets.xcassets/AppIcon.appiconset/AppIcon.png`. Apple's [app icon configuration documentation](https://developer.apple.com/documentation/xcode/configuring-your-app-icon) describes the single-image workflow. Native icon appearance still requires simulator and device validation.
 
 The checked-in project opens and builds directly on a Mac with Xcode 26 or later:
 
@@ -18,6 +18,8 @@ xcodebuild -project Sideleaf.xcodeproj -scheme Sideleaf -destination 'generic/pl
 ```
 
 `project.yml` remains the declarative source for project settings. After changing it, install XcodeGen and run `xcodegen generate`, then commit the regenerated `Sideleaf.xcodeproj` files with the specification change.
+
+The first App Store release uses marketing version `1.0` and build `1`. Update `MARKETING_VERSION` for a user-visible release and increment `CURRENT_PROJECT_VERSION` for every App Store Connect upload, then regenerate the checked-in project.
 
 For tests, choose an actually installed iPad simulator identifier from `xcrun simctl list devices` and pass it as the destination to `xcodebuild test`. No simulator name is assumed. The app target uses the registered bundle identifier `com.thinkhale.sideleaf` with automatic signing for the ThinkHale team. Xcode may need to download or create the matching provisioning profile during the first physical-device build.
 
