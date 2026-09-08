@@ -41,7 +41,7 @@ Then open http://127.0.0.1:3001. `preview` serves the built assets with local de
 - Responsive library, notebook, preparation and settings; centered focus mode; accurate microphone status; keyboard labels and reduced-motion handling.
 - Live microphone transcription over WebRTC, server-confirmed transcript storage, pause/resume, connection cleanup and authenticated usage accounting. No saved audio recordings or offline audio queue.
 - Free and Pro plan UI, server-authoritative entitlements, Stripe Checkout, customer portal, signed webhooks, cancellation and refund handling. Payments stay disabled until Stripe is configured.
-- Native SwiftUI/SwiftData/PencilKit source, native anchor tests, and a SpeechTranscriber device/language/asset readiness probe. This native source has not been compiled or run here.
+- Native SwiftUI/SwiftData/PencilKit source, native anchor tests, and a SpeechTranscriber device/language/asset readiness probe. The iPad app and test products compile with Xcode 26.6; simulator runtime and physical-device validation remain.
 
 ## Verification commands
 
@@ -69,6 +69,6 @@ Local `.env` overrides are optional and no secrets belong in `.env.example`. Kee
 
 ## Current boundary
 
-Live web transcription and assisted usage accounting are implemented. Real text-AI coaching, grounded summaries, full native synchronization, and completed-meeting workflows remain unfinished. Stripe purchase activation and native store billing need their provider setup and end-to-end validation. The native project is early source code that has not been built or tested on an iPad here.
+Live web transcription and assisted usage accounting are implemented. Real text-AI coaching, grounded summaries, full native synchronization, and completed-meeting workflows remain unfinished. Stripe purchase activation and native store billing need their provider setup and end-to-end validation. The early native project now compiles for an iPad simulator but has not yet been exercised in a simulator or on a physical iPad.
 
 See [status and continuation checklist](docs/status.md), [architecture](docs/architecture.md), [privacy evidence](docs/privacy.md), [billing design](docs/billing.md), [acceptance tests](docs/acceptance-tests.md), [design comparison](docs/design-review.md), and [native setup](native/README.md).

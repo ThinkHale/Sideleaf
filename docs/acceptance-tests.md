@@ -57,7 +57,7 @@ The in-app browser was available and used first for visible inspection once the 
 
 ## Not tested or not implemented
 
-Real prepare/start/pause/resume/end/reopen transcription; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; server usage leases and billing webhooks; payments/restore purchases; native compilation and UI; live Pencil hardware; external PostgreSQL TLS; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
+Real prepare/start/pause/resume/end/reopen transcription; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; server usage leases and billing webhooks; payments/restore purchases; native XCTest execution and runtime UI; live Pencil hardware; external PostgreSQL TLS; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
 
 These are acceptance gaps, not passes. The exact next implementation steps are in `status.md`.
 

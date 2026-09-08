@@ -1,12 +1,14 @@
 name: Sideleaf
 options:
-  bundleIdPrefix: dev.meetingnotebook
+  bundleIdPrefix: com.thinkhale
   deploymentTarget:
     iOS: '26.0'
 settings:
   base:
     SWIFT_VERSION: '6.0'
     TARGETED_DEVICE_FAMILY: '2'
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: MZ3635323W
 targets:
   Sideleaf:
     type: application
@@ -14,7 +16,10 @@ targets:
     sources: [Sources]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.meetingnotebook.ipad
+        PRODUCT_BUNDLE_IDENTIFIER: com.thinkhale.sideleaf
+        TARGETED_DEVICE_FAMILY: '2'
+        # Keep development builds working until the approved opaque 1024×1024 icon is packaged.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ''
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Sideleaf
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -25,6 +30,10 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources: [Tests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: '2'
     dependencies:
       - target: Sideleaf
 schemes:

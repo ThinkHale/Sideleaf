@@ -21,7 +21,7 @@ final class OnDeviceReadiness {
         guard let locale else { return }
         do {
             message = "Downloading language assets…"
-            let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveLiveTranscription)
+            let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
             if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) { try await request.downloadAndInstall() }
             await check()
         } catch { message = "Language assets could not be installed. Try again before the meeting." }

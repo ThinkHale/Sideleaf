@@ -18,7 +18,7 @@ The interface retains its warm paper background. Supporting brand tokens are nav
 
 `sideleaf-app-icon.svg` embeds the original primary PNG on paper `#fffdf8` and uses a square view box that reduces transparent outer padding without cutting painted artwork. The favicon and PWA manifest reference it. The original square PNG is also available in the manifest and as the Apple touch icon. Active web brand assets are included in the built service worker's offline cache.
 
-The native source bundles the original assets but does not yet configure a distribution `AppIcon`. The Mac packaging pass needs a valid opaque 1024x1024 PNG export and Xcode validation, as recorded in [native/README.md](../native/README.md). No installed iPadOS PWA or native app icon appearance is claimed as tested.
+The native source bundles the original assets but does not yet configure a distribution `AppIcon`. The app now compile-validates in Xcode, while packaging still needs an approved opaque 1024x1024 PNG export and visual validation as recorded in [native/README.md](../native/README.md). No installed iPadOS PWA or native app icon appearance is claimed as tested.
 
 ## Verification
 
