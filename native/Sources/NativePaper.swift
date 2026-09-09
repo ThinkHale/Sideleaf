@@ -29,7 +29,9 @@ struct NativePaper: UIViewRepresentable {
         view.text.isSelectable = tool == .type || tool == .select
         view.canvas.isUserInteractionEnabled = tool == .write || tool == .erase
         view.canvas.drawingPolicy = PaperInputPolicy.drawingPolicy(for: UIDevice.current.userInterfaceIdiom)
-        view.canvas.tool = tool == .erase ? PKEraserTool(.vector) : PKInkingTool(.pen, color: UIColor.label, width: 2)
+        view.canvas.tool = tool == .erase
+            ? PKEraserTool(.vector)
+            : PKInkingTool(.pen, color: .sideleafInk, width: 2)
         view.mark.isUserInteractionEnabled = tool == .mark
         if context.coordinator.undoSignal != undoSignal { view.canvas.undoManager?.undo(); context.coordinator.undoSignal = undoSignal }
         if context.coordinator.redoSignal != redoSignal { view.canvas.undoManager?.redo(); context.coordinator.redoSignal = redoSignal }
@@ -104,7 +106,14 @@ final class PaperView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
-        text.backgroundColor = .clear; text.font = .systemFont(ofSize: 20); text.isScrollEnabled = false
+        text.backgroundColor = .clear
+        text.font = UIFontMetrics(forTextStyle: .body).scaledFont(
+            for: .systemFont(ofSize: 20)
+        )
+        text.adjustsFontForContentSizeCategory = true
+        text.textColor = .sideleafInk
+        text.tintColor = .systemOlive
+        text.isScrollEnabled = false
         text.textContainerInset = UIEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
@@ -140,4 +149,7 @@ enum PaperInputPolicy {
         idiom == .phone ? .anyInput : .pencilOnly
     }
 }
-private extension UIColor { static let systemOlive = UIColor(red: 0.41, green: 0.45, blue: 0.33, alpha: 1) }
+private extension UIColor {
+    static let systemOlive = UIColor(red: 0.41, green: 0.45, blue: 0.33, alpha: 1)
+    static let sideleafInk = UIColor(red: 0.04, green: 0.13, blue: 0.23, alpha: 1)
+}

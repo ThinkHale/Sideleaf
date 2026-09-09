@@ -396,6 +396,1198 @@ final class CloudDocumentBridgeTests: XCTestCase {
     }
 }
 
+final class NativeLegalModelTests: XCTestCase {
+    func testLegacyStoredSessionDecodesWithoutAcceptanceVersion() throws {
+        let data = Data(
+            #"{"token":"legacy-token","identity":{"id":"user-1","name":"Taylor","email":"taylor@example.com"}}"#.utf8
+        )
+
+        let session = try JSONDecoder().decode(StoredNativeSession.self, from: data)
+
+        XCTAssertEqual(session.token, "legacy-token")
+        XCTAssertEqual(session.identity.id, "user-1")
+        XCTAssertNil(session.acceptedTermsVersion)
+    }
+
+    func testLegalStatusRequiresBothServerTimestamps() {
+        let metadata = legalTestMetadata
+        XCTAssertFalse(
+            CloudLegalStatus(
+                accepted: true,
+                acceptedAt: "2026-09-09T00:00:00.000Z",
+                recordingLawAcknowledgedAt: nil,
+                legal: metadata
+            ).confirmsCurrentTerms
+        )
+        XCTAssertTrue(acceptedLegalTestStatus.confirmsCurrentTerms)
+    }
+}
+
+final class NativeAPILegalGateTests: XCTestCase {
+    func testHTTP428ReturnsDecodedLegalMetadataAndClearsCachedAcceptance() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedAcceptedSession(in: store)
+        let responseData = Data(
+            #"{"code":"TERMS_ACCEPTANCE_REQUIRED","error":"Review terms.","legal":{"termsVersion":"2026-09-10.1","effectiveAt":"2026-09-10T00:00:00.000Z","termsUrl":"https://sideleaf.vercel.app/terms","privacyUrl":"https://sideleaf.vercel.app/privacy","recordingLawAcknowledgement":"I understand the updated recording-law responsibilities."}}"#.utf8
+        )
+        let api = NativeAPI(tokenStore: store) { request in
+            (responseData, try Self.response(for: request, status: 428))
+        }
+
+        do {
+            _ = try await api.notebooks()
+            XCTFail("Expected HTTP 428 to require terms acceptance")
+        } catch NativeAPIError.termsAcceptanceRequired(let metadata) {
+            XCTAssertEqual(metadata, updatedLegalTestMetadata)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(try store.load()?.acceptedTermsVersion)
+    }
+
+    func testHTTP428WithFutureLegalShapeClearsCachedAcceptance() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedAcceptedSession(in: store)
+        let api = NativeAPI(tokenStore: store) { request in
+            // The deliberately incompatible legal object makes ErrorEnvelope
+            // decoding fail, and there is no code field to fall back to.
+            return (
+                Data(#"{"legal":{"termsVersion":42,"future":true}}"#.utf8),
+                try Self.response(for: request, status: 428)
+            )
+        }
+
+        do {
+            _ = try await api.pages()
+            XCTFail("Expected HTTP 428 to require terms acceptance")
+        } catch NativeAPIError.termsAcceptanceRequired(let metadata) {
+            XCTAssertNil(metadata)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(try store.load()?.acceptedTermsVersion)
+    }
+
+    func testLegacyTermsCodeWithoutMetadataStillGatesAndClearsCache() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedAcceptedSession(in: store)
+        let api = NativeAPI(tokenStore: store) { request in
+            (
+                Data(#"{"code":"TERMS_ACCEPTANCE_REQUIRED"}"#.utf8),
+                try Self.response(for: request, status: 409)
+            )
+        }
+
+        do {
+            _ = try await api.pages()
+            XCTFail("Expected the legacy error code to require terms acceptance")
+        } catch NativeAPIError.termsAcceptanceRequired(let metadata) {
+            XCTAssertNil(metadata)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertNil(try store.load()?.acceptedTermsVersion)
+    }
+
+    func testRestoreDoesNotCarryAcceptanceAcrossChangedServerIdentity() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        let priorIdentity = CloudIdentity(id: "user-1", name: "Taylor", email: "taylor@example.com")
+        let restoredIdentity = CloudIdentity(id: "user-2", name: "Morgan", email: "morgan@example.com")
+        try store.save(
+            StoredNativeSession(
+                token: "test-token",
+                identity: priorIdentity,
+                acceptedTermsVersion: legalTestMetadata.termsVersion
+            )
+        )
+        let responseData = try JSONEncoder().encode(CloudSessionEnvelope(user: restoredIdentity))
+        let api = NativeAPI(tokenStore: store) { request in
+            guard let url = request.url,
+                  let response = HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]
+                  )
+            else { throw NativeAPIError.invalidResponse }
+            return (responseData, response)
+        }
+
+        let restored = try await api.restoreSession()
+
+        XCTAssertEqual(restored, restoredIdentity)
+        XCTAssertEqual(try store.load()?.identity, restoredIdentity)
+        XCTAssertNil(try store.load()?.acceptedTermsVersion)
+    }
+
+    private func makeTemporaryStore() -> KeychainSessionStore {
+        KeychainSessionStore(
+            service: "com.thinkhale.sideleaf.tests.\(UUID().uuidString)",
+            account: "native-api-legal-gate"
+        )
+    }
+
+    private func seedAcceptedSession(in store: KeychainSessionStore) throws {
+        try store.save(
+            StoredNativeSession(
+                token: "test-token",
+                identity: CloudIdentity(
+                    id: "user-1",
+                    name: "Taylor",
+                    email: "taylor@example.com"
+                ),
+                acceptedTermsVersion: legalTestMetadata.termsVersion
+            )
+        )
+    }
+
+    private static func response(for request: URLRequest, status: Int) throws -> HTTPURLResponse {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+              )
+        else { throw NativeAPIError.invalidResponse }
+        return response
+    }
+}
+
+final class NativeAPIAccountDeletionTests: XCTestCase {
+    func testDeleteAccountSendsConfirmationAndClearsSession() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedSession(in: store)
+        let api = NativeAPI(tokenStore: store) { request in
+            guard request.httpMethod == "DELETE",
+                  request.url?.path == "/api/account",
+                  let body = request.httpBody,
+                  let object = try JSONSerialization.jsonObject(with: body) as? [String: String],
+                  object == ["confirmation": "DELETE"]
+            else { throw NativeAPIError.invalidResponse }
+            return (
+                Data(#"{"deleted":true}"#.utf8),
+                try Self.response(for: request, status: 200)
+            )
+        }
+
+        _ = try await api.deleteAccount()
+
+        XCTAssertNil(try store.load())
+    }
+
+    func testConfirmedDeletionReportsCredentialCleanupFailureWithoutThrowing() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedSession(in: store)
+        let api = NativeAPI(
+            tokenStore: store,
+            accountDeletionCredentialCleanup: {
+                throw KeychainSessionStore.StoreError.keychain(-34_018)
+            }
+        ) { request in
+            (
+                Data(#"{"deleted":true}"#.utf8),
+                try Self.response(for: request, status: 200)
+            )
+        }
+
+        let outcome = try await api.deleteAccount()
+
+        XCTAssertEqual(outcome, .credentialCleanupFailed)
+        XCTAssertNotNil(try store.load(), "The injected Keychain failure should leave the credential")
+    }
+
+    func testDeleteAccountSurfacesRecentSignInRequirement() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedSession(in: store)
+        let message = "Sign out and sign in again before deleting your account."
+        let api = NativeAPI(tokenStore: store) { request in
+            (
+                Data(#"{"error":"Sign out and sign in again before deleting your account."}"#.utf8),
+                try Self.response(for: request, status: 403)
+            )
+        }
+
+        do {
+            _ = try await api.deleteAccount()
+            XCTFail("Expected recent sign-in requirement")
+        } catch NativeAPIError.server(let status, let receivedMessage) {
+            XCTAssertEqual(status, 403)
+            XCTAssertEqual(receivedMessage, message)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertNotNil(try store.load())
+    }
+
+    func testDeleteAccountSurfacesActiveSubscriptionRequirement() async throws {
+        let store = makeTemporaryStore()
+        defer { try? store.delete() }
+        try seedSession(in: store)
+        let message = "End your subscription before deleting the account so future billing can be stopped."
+        let api = NativeAPI(tokenStore: store) { request in
+            (
+                Data(#"{"error":"End your subscription before deleting the account so future billing can be stopped."}"#.utf8),
+                try Self.response(for: request, status: 409)
+            )
+        }
+
+        do {
+            _ = try await api.deleteAccount()
+            XCTFail("Expected active subscription requirement")
+        } catch NativeAPIError.server(let status, let receivedMessage) {
+            XCTAssertEqual(status, 409)
+            XCTAssertEqual(receivedMessage, message)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertNotNil(try store.load())
+    }
+
+    private func makeTemporaryStore() -> KeychainSessionStore {
+        KeychainSessionStore(
+            service: "com.thinkhale.sideleaf.tests.\(UUID().uuidString)",
+            account: "native-api-account-deletion"
+        )
+    }
+
+    private func seedSession(in store: KeychainSessionStore) throws {
+        try store.save(
+            StoredNativeSession(
+                token: "test-token",
+                identity: CloudIdentity(
+                    id: "delete-user",
+                    name: "Taylor",
+                    email: "taylor@example.com"
+                ),
+                acceptedTermsVersion: legalTestMetadata.termsVersion
+            )
+        )
+    }
+
+    private static func response(for request: URLRequest, status: Int) throws -> HTTPURLResponse {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: status,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+              )
+        else { throw NativeAPIError.invalidResponse }
+        return response
+    }
+}
+
+private let legalTestMetadata = CloudLegalMetadata(
+    termsVersion: "2026-09-09.1",
+    effectiveAt: "2026-09-09T00:00:00.000Z",
+    termsUrl: "https://sideleaf.vercel.app/terms",
+    privacyUrl: "https://sideleaf.vercel.app/privacy",
+    recordingLawAcknowledgement: "I understand my recording-law responsibilities."
+)
+
+private let acceptedLegalTestStatus = CloudLegalStatus(
+    accepted: true,
+    acceptedAt: "2026-09-09T00:00:00.000Z",
+    recordingLawAcknowledgedAt: "2026-09-09T00:00:00.000Z",
+    legal: legalTestMetadata
+)
+
+private let requiredLegalTestStatus = CloudLegalStatus(
+    accepted: false,
+    acceptedAt: nil,
+    recordingLawAcknowledgedAt: nil,
+    legal: legalTestMetadata
+)
+
+private let updatedLegalTestMetadata = CloudLegalMetadata(
+    termsVersion: "2026-09-10.1",
+    effectiveAt: "2026-09-10T00:00:00.000Z",
+    termsUrl: "https://sideleaf.vercel.app/terms",
+    privacyUrl: "https://sideleaf.vercel.app/privacy",
+    recordingLawAcknowledgement: "I understand the updated recording-law responsibilities."
+)
+
+private let updatedAcceptedLegalTestStatus = CloudLegalStatus(
+    accepted: true,
+    acceptedAt: "2026-09-10T00:00:00.000Z",
+    recordingLawAcknowledgedAt: "2026-09-10T00:00:00.000Z",
+    legal: updatedLegalTestMetadata
+)
+
+private actor AsyncTestGate {
+    private var armed = false
+    private var blocked = false
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var blockedContinuation: CheckedContinuation<Void, Never>?
+
+    func arm() { armed = true }
+
+    func waitIfArmed() async {
+        guard armed else { return }
+        armed = false
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+            blocked = true
+            blockedContinuation?.resume()
+            blockedContinuation = nil
+        }
+        blocked = false
+    }
+
+    func waitUntilBlocked() async {
+        guard !blocked else { return }
+        await withCheckedContinuation { continuation in
+            blockedContinuation = continuation
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
+private actor LegalRaceAPI: NativeAPIProviding {
+    let identity: CloudIdentity
+    private let refreshGate = AsyncTestGate()
+    private let saveGate = AsyncTestGate()
+    private var useUpdatedTerms = false
+    private var refreshThrowsTerms = false
+    private var dualRefreshFailure = false
+    private var completionOrderTermsFailure = false
+    private var notebookRequestCount = 0
+    private var saveRequestCount = 0
+    private var saveCountWaiters: [(target: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    init(identity: CloudIdentity) { self.identity = identity }
+
+    func configuration() async throws -> CloudConfiguration {
+        CloudConfiguration(
+            name: "Sideleaf test",
+            passwordAuth: true,
+            googleAuth: false,
+            capture: .init(ready: true, disclosure: nil, reason: "Ready"),
+            legal: useUpdatedTerms ? updatedLegalTestMetadata : legalTestMetadata
+        )
+    }
+
+    func cachedIdentity() async throws -> CloudIdentity? { identity }
+    func cachedAcceptedTermsVersion() async throws -> String? { legalTestMetadata.termsVersion }
+    func restoreSession() async throws -> CloudIdentity? { identity }
+    func signIn(email: String, password: String) async throws -> CloudIdentity { identity }
+    func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity {
+        identity
+    }
+    func legalStatus() async throws -> CloudLegalStatus {
+        useUpdatedTerms ? updatedAcceptedLegalTestStatus : acceptedLegalTestStatus
+    }
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus {
+        useUpdatedTerms ? updatedAcceptedLegalTestStatus : acceptedLegalTestStatus
+    }
+    func signOut() async throws {}
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome { .complete }
+    func notebooks() async throws -> [CloudNotebook] {
+        notebookRequestCount += 1
+        if dualRefreshFailure { throw NativeAPIError.transport }
+        let shouldThrowTerms = refreshThrowsTerms
+        if shouldThrowTerms { refreshThrowsTerms = false }
+        await refreshGate.waitIfArmed()
+        if shouldThrowTerms {
+            throw NativeAPIError.termsAcceptanceRequired(legalTestMetadata)
+        }
+        return []
+    }
+    func createNotebook(id: UUID, name: String) async throws -> CloudNotebook {
+        CloudNotebook(id: id, name: name, color: "#687354")
+    }
+    func pages() async throws -> [CloudPage] {
+        if completionOrderTermsFailure {
+            throw NativeAPIError.termsAcceptanceRequired(updatedLegalTestMetadata)
+        }
+        if dualRefreshFailure {
+            throw NativeAPIError.termsAcceptanceRequired(updatedLegalTestMetadata)
+        }
+        return []
+    }
+    func savePage(id: UUID, write: CloudPageWrite) async throws -> CloudPage {
+        saveRequestCount += 1
+        let completedWaiters = saveCountWaiters.filter { saveRequestCount >= $0.target }
+        saveCountWaiters.removeAll { saveRequestCount >= $0.target }
+        completedWaiters.forEach { $0.continuation.resume() }
+        await saveGate.waitIfArmed()
+        return CloudPage(
+            id: id,
+            notebookID: write.notebookID,
+            title: write.title,
+            document: write.document,
+            version: write.baseVersion + 1,
+            updatedAt: "2026-09-09T00:00:00.000Z"
+        )
+    }
+
+    func armRefresh() async { await refreshGate.arm() }
+    func armRefreshTermsError() async {
+        refreshThrowsTerms = true
+        await refreshGate.arm()
+    }
+    func waitForRefresh() async { await refreshGate.waitUntilBlocked() }
+    func releaseRefresh() async { await refreshGate.release() }
+    func armSave() async { await saveGate.arm() }
+    func waitForSave() async { await saveGate.waitUntilBlocked() }
+    func releaseSave() async { await saveGate.release() }
+    func updateTerms() { useUpdatedTerms = true }
+    func enableDualRefreshFailure() { dualRefreshFailure = true }
+    func armCompletionOrderTermsFailure() async {
+        completionOrderTermsFailure = true
+        await refreshGate.arm()
+    }
+    func notebookRequests() -> Int { notebookRequestCount }
+    func waitForSaveRequestCount(_ target: Int) async {
+        guard saveRequestCount < target else { return }
+        await withCheckedContinuation { continuation in
+            saveCountWaiters.append((target, continuation))
+        }
+    }
+}
+
+private actor RestoreVersionRaceAPI: NativeAPIProviding {
+    enum RestoreOutcome: Sendable {
+        case identity
+        case transportFailure
+    }
+
+    let identity: CloudIdentity
+    let cachedIdentityValue: CloudIdentity
+    let restoreOutcome: RestoreOutcome
+    let cachedTermsVersion: String?
+    let configuredLegal: CloudLegalMetadata
+    let restoredLegalStatus: CloudLegalStatus
+    let legalStatusError: NativeAPIError?
+    private let restoreGate = AsyncTestGate()
+
+    init(
+        identity: CloudIdentity,
+        restoreOutcome: RestoreOutcome,
+        cachedIdentity: CloudIdentity? = nil,
+        cachedTermsVersion: String? = legalTestMetadata.termsVersion,
+        configuredLegal: CloudLegalMetadata = updatedLegalTestMetadata,
+        restoredLegalStatus: CloudLegalStatus = acceptedLegalTestStatus,
+        legalStatusError: NativeAPIError? = nil
+    ) {
+        self.identity = identity
+        cachedIdentityValue = cachedIdentity ?? identity
+        self.restoreOutcome = restoreOutcome
+        self.cachedTermsVersion = cachedTermsVersion
+        self.configuredLegal = configuredLegal
+        self.restoredLegalStatus = restoredLegalStatus
+        self.legalStatusError = legalStatusError
+    }
+
+    func configuration() async throws -> CloudConfiguration {
+        CloudConfiguration(
+            name: "Sideleaf test",
+            passwordAuth: true,
+            googleAuth: false,
+            capture: .init(ready: true, disclosure: nil, reason: "Ready"),
+            legal: configuredLegal
+        )
+    }
+
+    func cachedIdentity() async throws -> CloudIdentity? { cachedIdentityValue }
+    func cachedAcceptedTermsVersion() async throws -> String? { cachedTermsVersion }
+    func restoreSession() async throws -> CloudIdentity? {
+        await restoreGate.waitIfArmed()
+        switch restoreOutcome {
+        case .identity: return identity
+        case .transportFailure: throw NativeAPIError.transport
+        }
+    }
+    func signIn(email: String, password: String) async throws -> CloudIdentity { identity }
+    func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity {
+        identity
+    }
+    func legalStatus() async throws -> CloudLegalStatus {
+        if let legalStatusError { throw legalStatusError }
+        return restoredLegalStatus
+    }
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus {
+        updatedAcceptedLegalTestStatus
+    }
+    func signOut() async throws {}
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome { .complete }
+    func notebooks() async throws -> [CloudNotebook] { [] }
+    func createNotebook(id: UUID, name: String) async throws -> CloudNotebook {
+        CloudNotebook(id: id, name: name, color: "#687354")
+    }
+    func pages() async throws -> [CloudPage] { [] }
+    func savePage(id: UUID, write: CloudPageWrite) async throws -> CloudPage {
+        throw NativeAPIError.transport
+    }
+
+    func armRestore() async { await restoreGate.arm() }
+    func waitForRestore() async { await restoreGate.waitUntilBlocked() }
+    func releaseRestore() async { await restoreGate.release() }
+}
+
+private actor LegalFlowAPI: NativeAPIProviding {
+    let identity: CloudIdentity
+    let acceptanceFails: Bool
+    private(set) var createAccountCalls = 0
+
+    init(identity: CloudIdentity, acceptanceFails: Bool = false) {
+        self.identity = identity
+        self.acceptanceFails = acceptanceFails
+    }
+
+    func configuration() async throws -> CloudConfiguration {
+        CloudConfiguration(
+            name: "Sideleaf test",
+            passwordAuth: true,
+            googleAuth: false,
+            capture: .init(ready: true, disclosure: nil, reason: "Ready"),
+            legal: legalTestMetadata
+        )
+    }
+
+    func cachedIdentity() async throws -> CloudIdentity? { identity }
+    func cachedAcceptedTermsVersion() async throws -> String? { nil }
+    func restoreSession() async throws -> CloudIdentity? { identity }
+    func signIn(email: String, password: String) async throws -> CloudIdentity { identity }
+    func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity {
+        createAccountCalls += 1
+        return identity
+    }
+    func legalStatus() async throws -> CloudLegalStatus { requiredLegalTestStatus }
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus {
+        if acceptanceFails { throw NativeAPIError.transport }
+        return acceptedLegalTestStatus
+    }
+    func signOut() async throws {}
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome { .complete }
+    func notebooks() async throws -> [CloudNotebook] { [] }
+    func createNotebook(id: UUID, name: String) async throws -> CloudNotebook {
+        CloudNotebook(id: id, name: name, color: "#687354")
+    }
+    func pages() async throws -> [CloudPage] { [] }
+    func savePage(id: UUID, write: CloudPageWrite) async throws -> CloudPage {
+        throw NativeAPIError.transport
+    }
+    func createAccountCallCount() -> Int { createAccountCalls }
+}
+
+private actor AccountDeletionAPI: NativeAPIProviding {
+    let identity: CloudIdentity
+    let legalStatusValue: CloudLegalStatus
+    let deletionError: NativeAPIError?
+    let deletionOutcome: NativeAccountDeletionOutcome
+    private(set) var deletionCalls = 0
+
+    init(
+        identity: CloudIdentity,
+        legalStatus: CloudLegalStatus = acceptedLegalTestStatus,
+        deletionError: NativeAPIError? = nil,
+        deletionOutcome: NativeAccountDeletionOutcome = .complete
+    ) {
+        self.identity = identity
+        legalStatusValue = legalStatus
+        self.deletionError = deletionError
+        self.deletionOutcome = deletionOutcome
+    }
+
+    func configuration() async throws -> CloudConfiguration {
+        CloudConfiguration(
+            name: "Sideleaf test",
+            passwordAuth: true,
+            googleAuth: false,
+            capture: .init(ready: true, disclosure: nil, reason: "Ready"),
+            legal: legalTestMetadata
+        )
+    }
+    func cachedIdentity() async throws -> CloudIdentity? { identity }
+    func cachedAcceptedTermsVersion() async throws -> String? { legalTestMetadata.termsVersion }
+    func restoreSession() async throws -> CloudIdentity? { identity }
+    func signIn(email: String, password: String) async throws -> CloudIdentity { identity }
+    func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity {
+        identity
+    }
+    func legalStatus() async throws -> CloudLegalStatus { legalStatusValue }
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus { acceptedLegalTestStatus }
+    func signOut() async throws {}
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome {
+        deletionCalls += 1
+        if let deletionError { throw deletionError }
+        return deletionOutcome
+    }
+    func notebooks() async throws -> [CloudNotebook] { [] }
+    func createNotebook(id: UUID, name: String) async throws -> CloudNotebook {
+        CloudNotebook(id: id, name: name, color: "#687354")
+    }
+    func pages() async throws -> [CloudPage] { [] }
+    func savePage(id: UUID, write: CloudPageWrite) async throws -> CloudPage {
+        throw NativeAPIError.transport
+    }
+    func deletionCallCount() -> Int { deletionCalls }
+}
+
+@MainActor
+final class NotebookSyncLegalTests: XCTestCase {
+    func testRestoreRequiresTermsWithoutHidingAccountDeviceCopies() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity)
+        let (context, page) = try makeContext(ownerID: identity.id)
+        let sync = NotebookSync(api: api)
+
+        await sync.restore(context: context)
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(sync.visiblePages(from: [page]).map(\.id), [page.id])
+        XCTAssertFalse(sync.isConnected)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    func testAcceptanceFailureRetainsAuthenticatedTermsGate() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity, acceptanceFails: true)
+        let (context, _) = try makeContext(ownerID: identity.id)
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let accepted = await sync.acceptTerms(
+            acceptedTerms: true,
+            recordingLawAcknowledged: true,
+            context: context
+        )
+
+        XCTAssertFalse(accepted)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(sync.identity, identity)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+        XCTAssertEqual(
+            sync.accountError,
+            "Sideleaf could not reach the notebook server. Your draft remains on this device."
+        )
+    }
+
+    func testAcceptanceEnablesSyncAndLiveTranscription() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity)
+        let (context, _) = try makeContext(ownerID: identity.id)
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let accepted = await sync.acceptTerms(
+            acceptedTerms: true,
+            recordingLawAcknowledged: true,
+            context: context
+        )
+
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(sync.account, .signedIn(identity))
+        XCTAssertEqual(sync.acceptedTermsVersion, legalTestMetadata.termsVersion)
+        XCTAssertTrue(sync.canUseLiveTranscription)
+    }
+
+    func testSignInChecksExistingUsersTermsBeforeSync() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity)
+        let (context, _) = try makeContext(ownerID: identity.id)
+        let sync = NotebookSync(api: api)
+
+        let signedIn = await sync.signIn(
+            email: identity.email,
+            password: "long-password",
+            context: context
+        )
+
+        XCTAssertTrue(signedIn)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertFalse(sync.isConnected)
+    }
+
+    func testCreateAccountKeepsSessionWhenAcceptanceRequestFails() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity, acceptanceFails: true)
+        let (context, _) = try makeContext(ownerID: nil)
+        let sync = NotebookSync(api: api)
+
+        let created = await sync.createAccount(
+            name: identity.name,
+            email: identity.email,
+            password: "long-password",
+            acceptedTerms: true,
+            recordingLawAcknowledged: true,
+            context: context
+        )
+
+        XCTAssertFalse(created)
+        XCTAssertEqual(sync.identity, identity)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+    }
+
+    func testCreateAccountRejectsMissingAcknowledgementBeforeCallingAPI() async throws {
+        let identity = CloudIdentity(id: "legal-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalFlowAPI(identity: identity)
+        let (context, _) = try makeContext(ownerID: nil)
+        let sync = NotebookSync(api: api)
+
+        let created = await sync.createAccount(
+            name: "Taylor",
+            email: "taylor@example.com",
+            password: "long-password",
+            acceptedTerms: true,
+            recordingLawAcknowledged: false,
+            context: context
+        )
+
+        XCTAssertFalse(created)
+        let createAccountCalls = await api.createAccountCallCount()
+        XCTAssertEqual(createAccountCalls, 0)
+    }
+
+    private func makeContext(ownerID: String?) throws -> (ModelContext, LocalPage) {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: LocalPage.self, configurations: configuration)
+        let context = container.mainContext
+        let page = LocalPage(title: "Device copy")
+        page.ownerUserID = ownerID
+        context.insert(page)
+        try context.save()
+        return (context, page)
+    }
+}
+
+@MainActor
+final class NotebookSyncAccountDeletionTests: XCTestCase {
+    func testDeletionFromTermsGateRemovesOnlyDeletedAccountsCachedPages() async throws {
+        let identity = CloudIdentity(id: "delete-user", name: "Taylor", email: "taylor@example.com")
+        let api = AccountDeletionAPI(identity: identity, legalStatus: requiredLegalTestStatus)
+        let container = try ModelContainer(
+            for: LocalPage.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let accountPage = LocalPage(title: "Delete me")
+        accountPage.ownerUserID = identity.id
+        let guestPage = LocalPage(title: "Keep guest")
+        let otherAccountPage = LocalPage(title: "Keep other account")
+        otherAccountPage.ownerUserID = "another-user"
+        [accountPage, guestPage, otherAccountPage].forEach(context.insert)
+        try context.save()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+        XCTAssertTrue(sync.requiresTermsAcceptance)
+
+        let deleted = await sync.deleteAccount(context: context)
+
+        XCTAssertTrue(deleted)
+        XCTAssertEqual(sync.account, .signedOut)
+        let remainingIDs = Set(try context.fetch(FetchDescriptor<LocalPage>()).map(\.id))
+        XCTAssertFalse(remainingIDs.contains(accountPage.id))
+        XCTAssertTrue(remainingIDs.contains(guestPage.id))
+        XCTAssertTrue(remainingIDs.contains(otherAccountPage.id))
+        let deletionCalls = await api.deletionCallCount()
+        XCTAssertEqual(deletionCalls, 1)
+    }
+
+    func testCredentialCleanupFailureStillSignsOutAndPurgesAccountPages() async throws {
+        let identity = CloudIdentity(id: "delete-user", name: "Taylor", email: "taylor@example.com")
+        let api = AccountDeletionAPI(
+            identity: identity,
+            deletionOutcome: .credentialCleanupFailed
+        )
+        let container = try ModelContainer(
+            for: LocalPage.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let accountPage = LocalPage(title: "Delete despite Keychain failure")
+        accountPage.ownerUserID = identity.id
+        let guestPage = LocalPage(title: "Keep guest")
+        [accountPage, guestPage].forEach(context.insert)
+        try context.save()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let deleted = await sync.deleteAccount(context: context)
+
+        XCTAssertTrue(deleted, "Confirmed remote deletion remains successful")
+        XCTAssertEqual(sync.account, .signedOut)
+        let remainingIDs = Set(try context.fetch(FetchDescriptor<LocalPage>()).map(\.id))
+        XCTAssertFalse(remainingIDs.contains(accountPage.id))
+        XCTAssertTrue(remainingIDs.contains(guestPage.id))
+        XCTAssertTrue(sync.accountError?.contains("account and its cached pages were deleted") == true)
+    }
+
+    func testFailedCachedPageCleanupCanRetryWithoutRepeatingRemoteDeletion() async throws {
+        let identity = CloudIdentity(id: "delete-user", name: "Taylor", email: "taylor@example.com")
+        let api = AccountDeletionAPI(identity: identity)
+        let container = try ModelContainer(
+            for: LocalPage.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let accountPage = LocalPage(title: "Remove on retry")
+        accountPage.ownerUserID = identity.id
+        let guestPage = LocalPage(title: "Keep guest")
+        [accountPage, guestPage].forEach(context.insert)
+        try context.save()
+        var cleanupSaveAttempts = 0
+        let sync = NotebookSync(
+            api: api,
+            saveDeletedAccountPageChanges: { context in
+                cleanupSaveAttempts += 1
+                if cleanupSaveAttempts == 1 { throw NativeAPIError.transport }
+                try context.save()
+            }
+        )
+        await sync.restore(context: context)
+
+        let initialCleanup = await sync.deleteAccount(context: context)
+
+        XCTAssertFalse(initialCleanup)
+        XCTAssertEqual(sync.account, .signedOut)
+        XCTAssertTrue(sync.hasPendingDeletedAccountPageCleanup)
+        XCTAssertTrue(sync.accountError?.contains("Retry removing the cached pages") == true)
+
+        let retryCleanup = sync.retryDeletedAccountPageCleanup(context: context)
+
+        XCTAssertTrue(retryCleanup)
+        XCTAssertFalse(sync.hasPendingDeletedAccountPageCleanup)
+        XCTAssertNil(sync.accountError)
+        let remainingIDs = Set(try context.fetch(FetchDescriptor<LocalPage>()).map(\.id))
+        XCTAssertFalse(remainingIDs.contains(accountPage.id))
+        XCTAssertTrue(remainingIDs.contains(guestPage.id))
+        XCTAssertEqual(cleanupSaveAttempts, 2)
+        let deletionCalls = await api.deletionCallCount()
+        XCTAssertEqual(deletionCalls, 1, "A local cleanup retry must not delete the account again")
+    }
+
+    func testDeletionFailurePreservesSessionPagesAndServerMessage() async throws {
+        let identity = CloudIdentity(id: "delete-user", name: "Taylor", email: "taylor@example.com")
+        let message = "End your subscription before deleting the account so future billing can be stopped."
+        let api = AccountDeletionAPI(
+            identity: identity,
+            deletionError: .server(status: 409, message: message)
+        )
+        let container = try ModelContainer(
+            for: LocalPage.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let accountPage = LocalPage(title: "Keep on failure")
+        accountPage.ownerUserID = identity.id
+        context.insert(accountPage)
+        try context.save()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let deleted = await sync.deleteAccount(context: context)
+
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(sync.account, .signedIn(identity))
+        XCTAssertEqual(sync.accountError, message)
+        XCTAssertNotNil(
+            try context.fetch(FetchDescriptor<LocalPage>()).first { $0.id == accountPage.id }
+        )
+    }
+}
+
+@MainActor
+final class NotebookSyncLegalRaceTests: XCTestCase {
+    func testRestoredDifferentIdentityCannotReuseCachedAcceptanceWhenLegalCheckFails() async throws {
+        let cachedIdentity = CloudIdentity(
+            id: "cached-user",
+            name: "Taylor",
+            email: "taylor@example.com"
+        )
+        let restoredIdentity = CloudIdentity(
+            id: "restored-user",
+            name: "Morgan",
+            email: "morgan@example.com"
+        )
+        let api = RestoreVersionRaceAPI(
+            identity: restoredIdentity,
+            restoreOutcome: .identity,
+            cachedIdentity: cachedIdentity,
+            configuredLegal: legalTestMetadata,
+            legalStatusError: .transport
+        )
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+
+        await sync.restore(context: context)
+
+        XCTAssertEqual(sync.identity, restoredIdentity)
+        XCTAssertEqual(sync.account, .termsRequired(restoredIdentity, offline: true))
+        XCTAssertNil(sync.acceptedTermsVersion)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    func testCompletedTermsFailureGatesBeforeSlowerRefreshSiblingFinishes() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+        XCTAssertTrue(sync.canUseLiveTranscription)
+
+        await api.armCompletionOrderTermsFailure()
+        let refresh = Task { @MainActor in await sync.refresh(context: context) }
+        await api.waitForRefresh()
+        for _ in 0..<100 where !sync.requiresTermsAcceptance {
+            await Task.yield()
+        }
+        let gatedBeforeSlowRequestFinished = sync.requiresTermsAcceptance
+            && !sync.canUseLiveTranscription
+
+        await api.releaseRefresh()
+        await refresh.value
+
+        XCTAssertTrue(gatedBeforeSlowRequestFinished)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(sync.legalMetadata, updatedLegalTestMetadata)
+    }
+
+    func testLegacyAcceptanceDoesNotAutoPresentWhileServerVerificationIsPending() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = RestoreVersionRaceAPI(
+            identity: identity,
+            restoreOutcome: .identity,
+            cachedTermsVersion: nil,
+            configuredLegal: legalTestMetadata,
+            restoredLegalStatus: acceptedLegalTestStatus
+        )
+        await api.armRestore()
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+
+        let restore = Task { @MainActor in await sync.restore(context: context) }
+        await api.waitForRestore()
+
+        XCTAssertTrue(sync.isVerifyingRestoredSession)
+        XCTAssertTrue(sync.requiresTermsAcceptance)
+        XCTAssertFalse(sync.shouldPresentTermsAcceptance)
+        XCTAssertEqual(sync.identity, identity)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+
+        await api.releaseRestore()
+        await restore.value
+
+        XCTAssertFalse(sync.isVerifyingRestoredSession)
+        XCTAssertFalse(sync.shouldPresentTermsAcceptance)
+        XCTAssertEqual(sync.account, .signedIn(identity))
+    }
+
+    func testRefreshPrioritizesTermsGateWhenParallelRequestAlsoFailsTransport() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+        XCTAssertTrue(sync.canUseLiveTranscription)
+
+        await api.enableDualRefreshFailure()
+        await sync.refresh(context: context)
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(sync.legalMetadata, updatedLegalTestMetadata)
+        XCTAssertNil(sync.acceptedTermsVersion)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    func testStaleRefreshCompletionCannotEscapeTermsGate() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+        XCTAssertEqual(sync.account, .signedIn(identity))
+
+        await api.armRefresh()
+        let refresh = Task { @MainActor in await sync.refresh(context: context) }
+        await api.waitForRefresh()
+        await api.updateTerms()
+        let loadedLegalMetadata = await sync.loadLegalMetadata()
+        XCTAssertTrue(loadedLegalMetadata)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+
+        await api.releaseRefresh()
+        await refresh.value
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertNil(sync.acceptedTermsVersion)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    func testStaleTermsErrorCannotRevokeNewAcceptanceAndFreshRefreshStarts() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        await api.armRefreshTermsError()
+        let staleRefresh = Task { @MainActor in await sync.refresh(context: context) }
+        await api.waitForRefresh()
+        await api.updateTerms()
+        let loadedLegalMetadata = await sync.loadLegalMetadata()
+        XCTAssertTrue(loadedLegalMetadata)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+
+        let accepted = await sync.acceptTerms(
+            acceptedTerms: true,
+            recordingLawAcknowledged: true,
+            context: context
+        )
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(sync.account, .signedIn(identity))
+        XCTAssertEqual(sync.acceptedTermsVersion, updatedLegalTestMetadata.termsVersion)
+        let notebookRequests = await api.notebookRequests()
+        XCTAssertGreaterThanOrEqual(notebookRequests, 3)
+
+        await api.releaseRefresh()
+        await staleRefresh.value
+
+        XCTAssertEqual(sync.account, .signedIn(identity))
+        XCTAssertEqual(sync.acceptedTermsVersion, updatedLegalTestMetadata.termsVersion)
+        XCTAssertTrue(sync.canUseLiveTranscription)
+    }
+
+    func testStaleSaveCompletionCannotEscapeTermsGateOrClearMutation() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let page = LocalPage(title: "Pending page")
+        page.ownerUserID = identity.id
+        page.notebookID = UUID()
+        page.serverVersion = 1
+        page.cloudBlockID = page.id
+        let pendingMutationID = UUID()
+        page.pendingMutationID = pendingMutationID
+        context.insert(page)
+        try context.save()
+
+        await api.armSave()
+        let save = Task { @MainActor in await sync.syncNow(page, context: context) }
+        await api.waitForSave()
+        await api.updateTerms()
+        let loadedLegalMetadata = await sync.loadLegalMetadata()
+        XCTAssertTrue(loadedLegalMetadata)
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+
+        await api.releaseSave()
+        await save.value
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(page.pendingMutationID, pendingMutationID)
+        XCTAssertEqual(page.serverVersion, 1)
+    }
+
+    func testStaleSaveIsRetriedAfterAcceptingUpdatedTerms() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = LegalRaceAPI(identity: identity)
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+        await sync.restore(context: context)
+
+        let page = LocalPage(title: "Pending page")
+        page.ownerUserID = identity.id
+        page.notebookID = UUID()
+        page.serverVersion = 1
+        page.cloudBlockID = page.id
+        page.pendingMutationID = UUID()
+        context.insert(page)
+        try context.save()
+
+        await api.armSave()
+        let staleSave = Task { @MainActor in await sync.syncNow(page, context: context) }
+        await api.waitForSave()
+        await api.updateTerms()
+        let loadedLegalMetadata = await sync.loadLegalMetadata()
+        XCTAssertTrue(loadedLegalMetadata)
+        let accepted = await sync.acceptTerms(
+            acceptedTerms: true,
+            recordingLawAcknowledged: true,
+            context: context
+        )
+        XCTAssertTrue(accepted)
+
+        await api.releaseSave()
+        await staleSave.value
+        await api.waitForSaveRequestCount(2)
+        for _ in 0..<100 where page.pendingMutationID != nil {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(sync.account, .signedIn(identity))
+        XCTAssertNil(page.pendingMutationID)
+        XCTAssertEqual(page.serverVersion, 2)
+    }
+
+    func testConfiguredTermsVersionWinsOverDelayedOlderLegalStatus() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = RestoreVersionRaceAPI(identity: identity, restoreOutcome: .identity)
+        await api.armRestore()
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+
+        let restore = Task { @MainActor in await sync.restore(context: context) }
+        await api.waitForRestore()
+        for _ in 0..<100 where sync.legalMetadata != updatedLegalTestMetadata {
+            await Task.yield()
+        }
+        XCTAssertEqual(sync.legalMetadata, updatedLegalTestMetadata)
+        await api.releaseRestore()
+        await restore.value
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: false))
+        XCTAssertEqual(sync.legalMetadata, updatedLegalTestMetadata)
+        XCTAssertNil(sync.acceptedTermsVersion)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    func testRestoreTransportFallbackCannotReactivateCachedOlderTerms() async throws {
+        let identity = CloudIdentity(id: "race-user", name: "Taylor", email: "taylor@example.com")
+        let api = RestoreVersionRaceAPI(identity: identity, restoreOutcome: .transportFailure)
+        await api.armRestore()
+        let context = try makeContext()
+        let sync = NotebookSync(api: api)
+
+        let restore = Task { @MainActor in await sync.restore(context: context) }
+        await api.waitForRestore()
+        for _ in 0..<100 where sync.legalMetadata != updatedLegalTestMetadata {
+            await Task.yield()
+        }
+        XCTAssertEqual(sync.legalMetadata, updatedLegalTestMetadata)
+        await api.releaseRestore()
+        await restore.value
+
+        XCTAssertEqual(sync.account, .termsRequired(identity, offline: true))
+        XCTAssertNil(sync.acceptedTermsVersion)
+        XCTAssertFalse(sync.canUseLiveTranscription)
+    }
+
+    private func makeContext() throws -> ModelContext {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: LocalPage.self, configurations: configuration)
+        return container.mainContext
+    }
+}
+
 private actor StaleRefreshAPI: NativeAPIProviding {
     let identity: CloudIdentity
     let notebook: CloudNotebook
@@ -412,23 +1604,31 @@ private actor StaleRefreshAPI: NativeAPIProviding {
             name: "Sideleaf test",
             passwordAuth: true,
             googleAuth: false,
-            capture: .init(ready: true, disclosure: nil, reason: "Ready")
+            capture: .init(ready: true, disclosure: nil, reason: "Ready"),
+            legal: legalTestMetadata
         )
     }
 
     func cachedIdentity() async throws -> CloudIdentity? { identity }
+    func cachedAcceptedTermsVersion() async throws -> String? { legalTestMetadata.termsVersion }
     func restoreSession() async throws -> CloudIdentity? { identity }
     func signIn(email: String, password: String) async throws -> CloudIdentity { identity }
     func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity {
         identity
     }
+    func legalStatus() async throws -> CloudLegalStatus { acceptedLegalTestStatus }
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus {
+        acceptedLegalTestStatus
+    }
     func signOut() async throws {}
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome { .complete }
     func notebooks() async throws -> [CloudNotebook] { [notebook] }
     func createNotebook(id: UUID, name: String) async throws -> CloudNotebook { notebook }
     func pages() async throws -> [CloudPage] { remotePages }
     func savePage(id: UUID, write: CloudPageWrite) async throws -> CloudPage {
         throw NativeAPIError.transport
     }
+
 }
 
 @MainActor

@@ -10,6 +10,9 @@ test('built PWA reloads offline, syncs recovered text, and prints without exclud
   await page.getByLabel('Your name').fill('Synthetic Offline QA');
   await page.getByLabel('Email', { exact: true }).fill(`pwa-${crypto.randomUUID()}@example.test`);
   await page.getByLabel('Password').fill('local-pwa-Password-47');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.getByRole('button', { name: 'Create a blank page', exact: true }).click();
   await page.getByLabel('Page title').fill('Offline recovery');

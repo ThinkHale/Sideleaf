@@ -4,7 +4,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
-import { notebooks, pages, revisions, user } from './schema.js';
+import { legalAcceptances, notebooks, pages, revisions, user } from './schema.js';
 import { pageWriteSchema, type NotebookDocument } from '../shared/domain.js';
 import { exportMarkdown } from '../shared/export.js';
 import type { Database } from './database.js';
@@ -13,6 +13,9 @@ import { passwordAuthEnabled } from './config.js';
 import { createAuth } from './auth.js';
 import { createBilling, BillingError } from './billing.js';
 import { createCapture, captureReady, CaptureError, CAPTURE_DISCLOSURE } from './capture.js';
+import { createLegal, LegalVersionMismatchError, TERMS_ACCEPTANCE_REQUIRED } from './legal.js';
+import type Stripe from 'stripe';
+import type { CaptureProvider } from './openai-capture.js';
 
 function protectedBlocksAreUnchanged(
   current: NotebookDocument | undefined,
@@ -24,10 +27,16 @@ function protectedBlocksAreUnchanged(
   return isDeepStrictEqual(proposedProtected, currentProtected);
 }
 
-export function createApp(db: Database, config: Config) {
+type AppDependencies = {
+  stripe?: Stripe;
+  captureProvider?: CaptureProvider;
+};
+
+export function createApp(db: Database, config: Config, dependencies: AppDependencies = {}) {
   const auth = createAuth(db, config);
-  const billing = createBilling(db, config);
-  const capture = createCapture(db, config, billing.entitlement);
+  const billing = createBilling(db, config, dependencies.stripe);
+  const capture = createCapture(db, config, billing.entitlement, dependencies.captureProvider);
+  const legal = createLegal(db, config);
   const app = new Hono<{ Variables: { userId: string; signedInAt: Date } }>();
   app.use('*', secureHeaders({ crossOriginEmbedderPolicy: false }));
   app.use(
@@ -63,6 +72,7 @@ export function createApp(db: Database, config: Config) {
       freeMinutes: config.freeMinutes,
       meetingMinutes: config.meetingMinutes,
       price: config.price,
+      legal: legal.metadata,
       capture: {
         ready: captureReady(),
         disclosure: CAPTURE_DISCLOSURE,
@@ -79,13 +89,52 @@ export function createApp(db: Database, config: Config) {
     c.set('signedInAt', session.session.createdAt);
     await next();
   });
+  app.get('/api/legal/status', async (c) => c.json(await legal.status(c.get('userId'))));
+  app.post('/api/legal/acceptance', async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid legal acceptance data.' }, 400);
+    }
+    return c.json(await legal.accept(c.get('userId'), body));
+  });
+  app.use('/api/*', async (c, next) => {
+    const path = c.req.path;
+    const method = c.req.method;
+    const permittedWithoutCurrentTerms =
+      (method === 'GET' && path === '/api/billing') ||
+      (method === 'POST' && path === '/api/billing/portal') ||
+      (method === 'POST' && path === '/api/billing/checkout/expire') ||
+      (method === 'GET' && path === '/api/account/export') ||
+      (method === 'DELETE' && path === '/api/account') ||
+      (method === 'POST' && path === '/api/capture/sessions/stop-all') ||
+      (method === 'POST' && /^\/api\/capture\/sessions\/[^/]+\/stop$/.test(path));
+    if (permittedWithoutCurrentTerms) {
+      await next();
+      return;
+    }
+    const current = await legal.status(c.get('userId'));
+    if (!current.accepted)
+      return c.json(
+        {
+          code: TERMS_ACCEPTANCE_REQUIRED,
+          error: 'Review and accept the current Terms of Service to continue.',
+          legal: current.legal,
+        },
+        428,
+      );
+    await next();
+  });
   const owner = (id: string, uid: string) => and(eq(pages.id, id), eq(pages.userId, uid));
   app.get('/api/billing', billing.status);
   app.post('/api/billing/checkout', billing.checkout);
   app.post('/api/billing/portal', billing.portal);
+  app.post('/api/billing/checkout/expire', billing.expireOpenCheckoutsRoute);
   app.get('/api/capture/usage', capture.usageRoute);
   app.get('/api/capture/pages/:pageId', capture.page);
   app.post('/api/capture/sessions', capture.start);
+  app.post('/api/capture/sessions/stop-all', capture.stopAllRoute);
   app.get('/api/capture/sessions/:id/events', capture.events);
   app.post('/api/capture/sessions/:id/heartbeat', capture.heartbeat);
   app.post('/api/capture/sessions/:id/stop', capture.stop);
@@ -248,7 +297,16 @@ export function createApp(db: Database, config: Config) {
   app.get('/api/account/export', async (c) =>
     c.json({
       exportedAt: new Date().toISOString(),
-      schemaVersion: 2,
+      schemaVersion: 3,
+      legalAcceptances: await db
+        .select({
+          termsVersion: legalAcceptances.termsVersion,
+          acceptedAt: legalAcceptances.acceptedAt,
+          recordingLawAcknowledgedAt: legalAcceptances.recordingLawAcknowledgedAt,
+          legalBundleSha256: legalAcceptances.legalBundleSha256,
+        })
+        .from(legalAcceptances)
+        .where(eq(legalAcceptances.userId, c.get('userId'))),
       transcripts: await capture.accountExport(c.get('userId')),
       notebooks: await db
         .select()
@@ -277,6 +335,8 @@ export function createApp(db: Database, config: Config) {
       .parse(await c.req.json());
     if (Date.now() - c.get('signedInAt').getTime() > 5 * 60 * 1000)
       return c.json({ error: 'Sign out and sign in again before deleting your account.' }, 403);
+    await capture.stopAll(c.get('userId'));
+    await billing.expireOpenCheckouts(c.get('userId'));
     await db.transaction(async (tx) => {
       await tx
         .select({ id: user.id })
@@ -302,10 +362,19 @@ export function createApp(db: Database, config: Config) {
   app.onError((error, c) => {
     if (error instanceof CaptureError || error instanceof BillingError)
       return c.json({ error: error.message }, error.status);
+    if (error instanceof LegalVersionMismatchError)
+      return c.json(
+        {
+          code: TERMS_ACCEPTANCE_REQUIRED,
+          error: error.message,
+          legal: legal.metadata,
+        },
+        428,
+      );
     if (error instanceof z.ZodError)
       return c.json(
         {
-          error: 'Invalid notebook data.',
+          error: 'Invalid request data.',
           issues: error.issues.map((i) => ({ path: i.path, message: i.message })),
         },
         400,

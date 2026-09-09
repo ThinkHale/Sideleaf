@@ -4,6 +4,7 @@ import { openDatabase } from '../server/database';
 import { createApp } from '../server/app';
 import { pages } from '../server/schema';
 import { emptyDocument } from '../shared/domain';
+import { CURRENT_TERMS_VERSION } from '../shared/legal';
 const origin = 'http://127.0.0.1:5173';
 let storage: Awaited<ReturnType<typeof openDatabase>>;
 let app: ReturnType<typeof createApp>;
@@ -45,10 +46,17 @@ beforeAll(async () => {
       password: 'test-notebook-Password-47',
     });
     expect(response.status, await response.clone().text()).toBe(200);
-    return response.headers
+    const cookie = response.headers
       .getSetCookie()
       .map((c) => c.split(';')[0])
       .join('; ');
+    const accepted = await request('/legal/acceptance', cookie, 'POST', {
+      termsVersion: CURRENT_TERMS_VERSION,
+      acceptedTerms: true,
+      recordingLawAcknowledged: true,
+    });
+    expect(accepted.status, await accepted.clone().text()).toBe(200);
+    return cookie;
   }
   alice = await register('alice@example.test');
   bob = await register('bob@example.test');

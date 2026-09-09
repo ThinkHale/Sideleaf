@@ -27,7 +27,9 @@ const stripe = {
   prices: { retrieve: vi.fn() },
   customers: { create: vi.fn() },
   subscriptions: { retrieve: vi.fn(), list: vi.fn() },
-  checkout: { sessions: { create: vi.fn(), list: vi.fn() } },
+  checkout: {
+    sessions: { create: vi.fn(), list: vi.fn(), expire: vi.fn(), retrieve: vi.fn() },
+  },
   billingPortal: { sessions: { create: vi.fn() } },
   charges: { retrieve: vi.fn() },
   disputes: { retrieve: vi.fn() },
@@ -82,6 +84,7 @@ function setup() {
   });
   app.get('/api/billing', billing.status);
   app.post('/api/billing/checkout', billing.checkout);
+  app.post('/api/billing/checkout/expire', billing.expireOpenCheckoutsRoute);
   app.post('/api/billing/portal', billing.portal);
 }
 function request(path = '', uid = 'alice', method = 'GET', body?: unknown) {
@@ -150,6 +153,16 @@ beforeEach(async () => {
     id: 'cs_alice',
     status: 'open',
     url: 'https://checkout.stripe.com/test',
+  });
+  stripe.checkout.sessions.expire.mockImplementation(async (sessionId) => ({
+    id: sessionId,
+    status: 'expired',
+    customer: 'cus_alice',
+  }));
+  stripe.checkout.sessions.retrieve.mockResolvedValue({
+    id: 'cs_alice',
+    status: 'open',
+    customer: 'cus_alice',
   });
   stripe.billingPortal.sessions.create.mockResolvedValue({
     url: 'https://billing.stripe.com/test',
@@ -224,6 +237,132 @@ describe.sequential('Stripe billing boundaries', () => {
     const response = await request('/checkout', 'alice', 'POST', {});
     expect(await response.json()).toEqual({ url: 'https://checkout.stripe.com/existing' });
     expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+  it('expires only Sideleaf-owned open Checkouts, resets local state, and is idempotent', async () => {
+    await customer();
+    const [before] = await storage.db
+      .select()
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, 'alice'));
+    await storage.db
+      .update(billingCustomers)
+      .set({ checkoutSessionId: 'cs_owned' })
+      .where(eq(billingCustomers.userId, 'alice'));
+    stripe.checkout.sessions.list.mockResolvedValue({
+      has_more: false,
+      data: [
+        {
+          id: 'cs_owned',
+          status: 'open',
+          customer: 'cus_alice',
+          mode: 'subscription',
+          client_reference_id: 'alice',
+          metadata: { sideleaf_price_id: 'price_pro' },
+        },
+        {
+          id: 'cs_unowned',
+          status: 'open',
+          customer: 'cus_alice',
+          mode: 'subscription',
+          client_reference_id: 'bob',
+          metadata: {},
+        },
+      ],
+    });
+
+    const response = await request('/checkout/expire', 'alice', 'POST', {});
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(await response.json()).toEqual({ expired: 1 });
+    expect(stripe.checkout.sessions.expire).toHaveBeenCalledTimes(1);
+    expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith('cs_owned');
+    const [after] = await storage.db
+      .select()
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, 'alice'));
+    expect(after.checkoutSessionId).toBeNull();
+    expect(after.checkoutAttempt).not.toBe(before.checkoutAttempt);
+
+    stripe.checkout.sessions.list.mockResolvedValue({ has_more: false, data: [] });
+    expect(await (await request('/checkout/expire', 'alice', 'POST', {})).json()).toEqual({
+      expired: 0,
+    });
+    expect(stripe.checkout.sessions.expire).toHaveBeenCalledTimes(1);
+  });
+  it('keeps failed Checkout cleanup retryable without exposing provider details', async () => {
+    await customer();
+    await storage.db
+      .update(billingCustomers)
+      .set({ checkoutSessionId: 'cs_retry' })
+      .where(eq(billingCustomers.userId, 'alice'));
+    stripe.checkout.sessions.list.mockResolvedValue({
+      has_more: false,
+      data: [
+        {
+          id: 'cs_retry',
+          status: 'open',
+          customer: 'cus_alice',
+          mode: 'subscription',
+          client_reference_id: 'alice',
+          metadata: { sideleaf_price_id: 'price_pro' },
+        },
+      ],
+    });
+    stripe.checkout.sessions.expire.mockRejectedValueOnce(
+      new Error('synthetic provider credential detail'),
+    );
+    stripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+      id: 'cs_retry',
+      status: 'open',
+      customer: 'cus_alice',
+    });
+
+    const failed = await request('/checkout/expire', 'alice', 'POST', {});
+    expect(failed.status).toBe(503);
+    expect(await failed.text()).not.toContain('credential detail');
+    expect(
+      (
+        await storage.db.select().from(billingCustomers).where(eq(billingCustomers.userId, 'alice'))
+      )[0].checkoutSessionId,
+    ).toBe('cs_retry');
+
+    const retried = await request('/checkout/expire', 'alice', 'POST', {});
+    expect(retried.status, await retried.clone().text()).toBe(200);
+    expect(await retried.json()).toEqual({ expired: 1 });
+    expect(stripe.checkout.sessions.expire).toHaveBeenCalledTimes(2);
+  });
+  it('does not clear newer Checkout state that appeared during provider cleanup', async () => {
+    await customer();
+    await storage.db
+      .update(billingCustomers)
+      .set({ checkoutSessionId: 'cs_stale' })
+      .where(eq(billingCustomers.userId, 'alice'));
+    stripe.checkout.sessions.list.mockResolvedValue({
+      has_more: false,
+      data: [
+        {
+          id: 'cs_stale',
+          status: 'open',
+          customer: 'cus_alice',
+          mode: 'subscription',
+          client_reference_id: 'alice',
+          metadata: { sideleaf_price_id: 'price_pro' },
+        },
+      ],
+    });
+    stripe.checkout.sessions.expire.mockImplementationOnce(async () => {
+      await storage.db
+        .update(billingCustomers)
+        .set({ checkoutAttempt: 'new-attempt', checkoutSessionId: 'cs_new' })
+        .where(eq(billingCustomers.userId, 'alice'));
+      return { id: 'cs_stale', status: 'expired', customer: 'cus_alice' };
+    });
+
+    expect((await request('/checkout/expire', 'alice', 'POST', {})).status).toBe(409);
+    expect(
+      (
+        await storage.db.select().from(billingCustomers).where(eq(billingCustomers.userId, 'alice'))
+      )[0],
+    ).toMatchObject({ checkoutAttempt: 'new-attempt', checkoutSessionId: 'cs_new' });
   });
   it('serializes concurrent Checkout requests for the same customer', async () => {
     const openSession = {

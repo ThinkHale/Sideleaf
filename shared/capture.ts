@@ -4,7 +4,9 @@ export const captureStartSchema = z
   .object({
     pageId: z.string().uuid(),
     sdp: z.string().min(10).max(100000),
-    consent: z.literal(true),
+    // Accepted for one cached-PWA rollout only. Current clients rely on the
+    // account-level legal gate instead of making a per-session attestation.
+    consent: z.literal(true).optional(),
   })
   .strict();
 

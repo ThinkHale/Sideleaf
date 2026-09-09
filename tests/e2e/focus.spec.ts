@@ -25,6 +25,9 @@ test('focus keeps the notebook centered and readable across desktop, tablet and 
   await page.getByLabel('Your name').fill('Focus QA');
   await page.getByLabel('Email', { exact: true }).fill(`focus-${crypto.randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: false }).fill('local-focus-Password-123');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.getByRole('button', { name: 'Open a synthetic example' }).click();
   const note = page.getByLabel('Note text', { exact: true }).first();

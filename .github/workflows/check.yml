@@ -12,8 +12,11 @@ jobs:
           test -f native/Sources/Assets.xcassets/AppIcon.appiconset/AppIcon.png
           grep -Eq 'MARKETING_VERSION = [^;]+;' native/Sideleaf.xcodeproj/project.pbxproj
           grep -Eq 'CURRENT_PROJECT_VERSION = [^;]+;' native/Sideleaf.xcodeproj/project.pbxproj
+          grep -q 'TARGETED_DEVICE_FAMILY = "1,2";' native/Sideleaf.xcodeproj/project.pbxproj
           grep -q 'ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;' native/Sideleaf.xcodeproj/project.pbxproj
           grep -q 'INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;' native/Sideleaf.xcodeproj/project.pbxproj
+          grep -q 'INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";' native/Sideleaf.xcodeproj/project.pbxproj
+          if grep -q 'confirm participant consent' native/Sideleaf.xcodeproj/project.pbxproj; then exit 1; fi
       - uses: actions/setup-node@v4
         with:
           node-version: 24

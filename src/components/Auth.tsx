@@ -1,11 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, LockKeyhole } from 'lucide-react';
-import { authClient, type ProductConfig } from '../api';
+import {
+  acceptLegalTerms,
+  authClient,
+  legalMetadataFromAcceptanceError,
+  type ProductConfig,
+} from '../api';
 import { Brand } from './Brand';
-export function Auth({ config, onDone }: { config: ProductConfig; onDone: () => void }) {
+import { LegalControls } from './LegalControls';
+import { LegalLinks } from './LegalLinks';
+export function Auth({
+  config,
+  onDone,
+  accountNotice = '',
+}: {
+  config: ProductConfig;
+  onDone: () => void;
+  accountNotice?: string;
+}) {
   const [register, setRegister] = useState(true),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [termsAccepted, setTermsAccepted] = useState(false),
+    [recordingLawAcknowledged, setRecordingLawAcknowledged] = useState(false),
+    [acceptancePending, setAcceptancePending] = useState(false),
+    [currentLegal, setCurrentLegal] = useState(config.legal);
+  useEffect(() => {
+    setCurrentLegal(config.legal);
+    setTermsAccepted(false);
+    setRecordingLawAcknowledged(false);
+  }, [config.legal]);
+  async function saveAcceptance() {
+    const status = await acceptLegalTerms(currentLegal.termsVersion);
+    if (!status.accepted || status.legal.termsVersion !== currentLegal.termsVersion)
+      throw new Error('The current terms still need your acceptance. Please try again.');
+  }
+  function recoverChangedTerms(cause: unknown) {
+    const metadata = legalMetadataFromAcceptanceError(cause);
+    if (!metadata) return false;
+    setCurrentLegal(metadata);
+    setAcceptancePending(true);
+    setTermsAccepted(false);
+    setRecordingLawAcknowledged(false);
+    setError('The Terms of Service changed. Review the current version before continuing.');
+    return true;
+  }
   return (
     <main className="auth-layout">
       <div className="auth-aside">
@@ -29,6 +68,11 @@ export function Auth({ config, onDone }: { config: ProductConfig; onDone: () => 
           <Brand name={config.name} className="mobile-brand" />
           <h2>{register ? 'Open your notebook' : 'Welcome back'}</h2>
           <p className="muted">A place for the things worth remembering.</p>
+          {accountNotice && (
+            <div className="notice" role="status">
+              <span>{accountNotice}</span>
+            </div>
+          )}
           {config.development && (
             <div className="notice">
               <LockKeyhole size={16} />
@@ -46,6 +90,11 @@ export function Auth({ config, onDone }: { config: ProductConfig; onDone: () => 
                 setError('');
                 const data = new FormData(e.currentTarget);
                 try {
+                  if (acceptancePending) {
+                    await saveAcceptance();
+                    onDone();
+                    return;
+                  }
                   const credentials = {
                     email: String(data.get('email')),
                     password: String(data.get('password')),
@@ -57,37 +106,77 @@ export function Auth({ config, onDone }: { config: ProductConfig; onDone: () => 
                       })
                     : await authClient.signIn.email(credentials);
                   if (result.error) setError(result.error.message || 'Unable to sign in.');
-                  else onDone();
-                } catch {
-                  setError('The notebook server is unavailable. Try again in a moment.');
+                  else if (register) {
+                    try {
+                      await saveAcceptance();
+                      onDone();
+                    } catch (cause) {
+                      if (recoverChangedTerms(cause)) return;
+                      setAcceptancePending(true);
+                      setError(
+                        'Your account was created, but we could not save your acceptance. Check your connection and try again.',
+                      );
+                    }
+                  } else onDone();
+                } catch (cause) {
+                  if (recoverChangedTerms(cause)) return;
+                  setError(
+                    cause instanceof Error
+                      ? cause.message
+                      : 'The notebook server is unavailable. Try again in a moment.',
+                  );
                 } finally {
                   setBusy(false);
                 }
               }}
+              aria-busy={busy}
             >
-              {register && (
+              <fieldset className="auth-fields" disabled={acceptancePending}>
+                {register && (
+                  <label>
+                    Your name
+                    <input name="name" autoComplete="name" required maxLength={100} />
+                  </label>
+                )}
                 <label>
-                  Your name
-                  <input name="name" autoComplete="name" required maxLength={100} />
+                  Email
+                  <input name="email" type="email" autoComplete="email" required />
                 </label>
-              )}
-              <label>
-                Email
-                <input name="email" type="email" autoComplete="email" required />
-              </label>
-              <label>
-                Password
-                <input
-                  name="password"
-                  type="password"
-                  autoComplete={register ? 'new-password' : 'current-password'}
-                  required
-                  minLength={10}
+                <label>
+                  Password
+                  <input
+                    name="password"
+                    type="password"
+                    autoComplete={register ? 'new-password' : 'current-password'}
+                    required
+                    minLength={10}
+                  />
+                  <small>At least 10 characters</small>
+                </label>
+              </fieldset>
+              {register && (
+                <LegalControls
+                  legal={currentLegal}
+                  termsAccepted={termsAccepted}
+                  recordingLawAcknowledged={recordingLawAcknowledged}
+                  onTermsAccepted={setTermsAccepted}
+                  onRecordingLawAcknowledged={setRecordingLawAcknowledged}
+                  disabled={busy}
                 />
-                <small>At least 10 characters</small>
-              </label>
-              <button className="primary" disabled={busy}>
-                {busy ? 'Opening notebook…' : register ? 'Create account' : 'Sign in'}
+              )}
+              <button
+                className="primary"
+                disabled={busy || (register && (!termsAccepted || !recordingLawAcknowledged))}
+              >
+                {busy
+                  ? acceptancePending
+                    ? 'Saving your acceptance…'
+                    : 'Opening notebook…'
+                  : acceptancePending
+                    ? 'Try saving acceptance again'
+                    : register
+                      ? 'Create account'
+                      : 'Sign in'}
                 <ArrowRight size={17} />
               </button>
             </form>
@@ -116,11 +205,19 @@ export function Auth({ config, onDone }: { config: ProductConfig; onDone: () => 
               onClick={() => {
                 setRegister(!register);
                 setError('');
+                setAcceptancePending(false);
+                setTermsAccepted(false);
+                setRecordingLawAcknowledged(false);
               }}
             >
-              {register ? 'Already have an account? Sign in' : 'New here? Create an account'}
+              {acceptancePending
+                ? 'Return to sign in'
+                : register
+                  ? 'Already have an account? Sign in'
+                  : 'New here? Create an account'}
             </button>
           )}
+          <LegalLinks legal={currentLegal} className="auth-legal-links" />
           <p className="fine-print">
             Manual notes work without a meeting.
             <br />

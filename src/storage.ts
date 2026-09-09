@@ -57,6 +57,15 @@ export const local = {
     }
     return db.get('meta', 'identity');
   },
+  async acceptedLegalVersion(userId: string, version?: string | null): Promise<string | null> {
+    const db = await database;
+    const key = `legal:${userId}`;
+    if (version !== undefined) {
+      if (version === null) await db.delete('meta', key);
+      else await db.put('meta', version, key);
+    }
+    return (await db.get('meta', key)) || null;
+  },
   async recover(userId: string, page: Page) {
     return (await database).put('recovery', page, `${userId}:${page.id}:${Date.now()}`);
   },
@@ -69,10 +78,16 @@ export const local = {
   },
   async clear(userId: string) {
     const db = await database;
-    for (const store of ['pages', 'recovery'] as const)
-      for (const key of await db.getAllKeys(store))
-        if (String(key).startsWith(`${userId}:`)) await db.delete(store, key);
-    await db.delete('meta', `notebooks:${userId}`);
-    await db.delete('meta', 'identity');
+    const tx = db.transaction(['pages', 'recovery', 'meta'], 'readwrite');
+    for (const store of ['pages', 'recovery'] as const) {
+      const objectStore = tx.objectStore(store);
+      for (const key of await objectStore.getAllKeys())
+        if (String(key).startsWith(`${userId}:`)) await objectStore.delete(key);
+    }
+    const metadata = tx.objectStore('meta');
+    await metadata.delete(`notebooks:${userId}`);
+    await metadata.delete(`legal:${userId}`);
+    await metadata.delete('identity');
+    await tx.done;
   },
 };

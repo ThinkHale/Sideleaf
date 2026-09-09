@@ -1,6 +1,6 @@
 # Acceptance tests and evidence
 
-The September 7-8, 2026 implementation and verification results are recorded in [status.md](status.md), including the current 108-test Vitest suite, earlier browser/focus and built-PWA checks, production Supabase integration, hosted real OpenAI transcription with synthetic microphone input, and build-4 native compile/archive evidence. The dated results below preserve the earlier baseline and its narrower scope.
+The September 7-9, 2026 implementation and verification results are recorded in [status.md](status.md), including the current 135-test Vitest suite, earlier browser/focus and built-PWA checks, production Supabase integration, hosted real OpenAI transcription with synthetic microphone input, versioned legal-acceptance checks, and native compile evidence. The dated results below preserve earlier baselines and their narrower scope.
 
 Recorded 2026-09-06 on Windows, Node 24.18.0. No test results below represent a Mac simulator, physical iPhone or iPad, Apple Pencil, live microphone provider, real billing account, or production database run.
 
@@ -26,7 +26,7 @@ After the Sideleaf rename, `npm run check` passed again with 23 tests, and the b
 | Conflict recovery            | Two tabs edit the same page. Stale tab gets a conflict and creates a separate recovered page, preserving both texts.                                                                                       |
 | Anchoring                    | UTF-16 emoji offsets, unique quote/context movement, ambiguity rejection, missing source, correction preserving original quote, duplicate IDs and invalid resolved anchors.                                |
 | Geometry and ink             | Real browser pointer circle in Write creates ink only. Undo removes it. The same circle in Mark selects the enclosed word and creates a semantic mark. It persists after viewport reflow.                  |
-| Preparation                  | Discovery template fills empty fields, participants persist, consent enables readiness check, unavailable capture is explained, preparation survives reopening.                                            |
+| Preparation                  | Discovery template fills empty fields, participants persist, readiness can be checked without starting the microphone, unavailable capture is explained, preparation survives reopening.                   |
 | Follow-ups                   | Selected phrase produces an editable user follow-up, saved question reopens, changed source shows unresolved status. No AI-generated output is represented as tested.                                      |
 | Exports                      | Markdown download, excluded note/mark filtering, full account JSON, page deletion cascading through history. PWA print view excludes private text.                                                         |
 | Privacy                      | Unknown audio fields and forged AI/transcript provenance rejected. Source scan and route design show no capture path. This is not a bounded-live-audio or provider-retention test.                         |
@@ -52,12 +52,12 @@ The in-app browser was available and used first for visible inspection once the 
 - Hidden mobile button labels removed accessible names. Explicit labels were added.
 - The initial PWA precached HTML without the first-load script/CSS assets. Installation now precaches the actual hashed entry assets and gets a build-specific cache version.
 - Long phone page titles were clipped in a single-line input. An auto-height title textarea now wraps the full title.
-- Generic participant-label selection matched the consent checkbox in a test. The test now uses the exact field label.
+- Generic participant-label selection once matched an unrelated checkbox in a test. The test now uses the exact field label.
 - Development sign-up tests exceeded Better Auth's default route rate limit. Local-only auth has an explicit 30-per-minute limit; production retains the maintained default rules.
 
 ## Not tested or not implemented
 
-Real prepare/start/pause/resume/end/reopen cloud transcription in the earlier dated baseline; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad microphone, on-device transcription and live Pencil hardware; signed App Store archive/upload; build-4 hosted deployment; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
+Real prepare/start/pause/resume/end/reopen cloud transcription in the earlier dated baseline; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad microphone, on-device transcription and live Pencil hardware; signed App Store archive/upload; build-6 hosted deployment; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
 
 These are acceptance gaps, not passes. The exact next implementation steps are in `status.md`.
 
@@ -101,3 +101,15 @@ The concept-to-render comparison, copy differences, and intentional design devia
 - An unsigned generic iOS Release archive passed. Its `Info.plist` reports bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, build `4`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, and iPhone/iPad AppIcon entries.
 - The archive contains Boolean `ITSAppUsesNonExemptEncryption = false`, matching current OS-provided HTTPS and Keychain-only encryption use. Dependency or feature changes that add encryption require a new export-compliance review.
 - Physical-device sign-in, synchronization, microphone, interruption, transcription, touch/Pencil and signed TestFlight installation remain unverified. The build-4 API changes have not yet been verified in the hosted deployment.
+
+### Account-level legal acceptance and iOS release candidate, build 6
+
+- Account creation presents the current Terms and Privacy Notice, requires separate unchecked Terms and recording-law responsibility controls, and stores server-owned timestamps plus a SHA-256 legal-bundle fingerprint. A stale version returns the current metadata and resets the assent controls instead of retrying an obsolete version.
+- The server gates notebook, synchronization, billing-purchase and capture work on the exact current Terms version and fingerprint. Sign-out, subscription management, account export, account deletion and active-capture cleanup remain available. Account deletion automatically stops owned capture sessions and expires unfinished Sideleaf Checkout sessions before the active-subscription check.
+- The per-capture attestation toggle is removed. Browser and native capture retain a responsibility reminder, deliberate Start action, operating-system permission, visible live-microphone state, and Pause/Stop controls.
+- Web and native account dialogs cannot be dismissed during deletion work. If confirmed cloud deletion succeeds but device cleanup fails, the web client clears authenticated UI and warns about site data; the native client offers a cached-page retry that does not repeat the server deletion.
+- `npm run check` passed the TypeScript/Vite production build and all 135 Vitest tests across 13 files. Two focused legal-acceptance browser flows passed locally. The complete browser and built-PWA suites were not rerun in this pass; CI remains configured to install Chromium and run both suites.
+- Live capture now blocks page-changing actions, account and billing exits, reload, and tab closure until capture finalization and any unconfirmed text are resolved. Focused page-exit and capture-client tests passed; the corresponding full browser flow remains part of CI.
+- XcodeGen regenerated the checked-in project. Warnings-as-errors simulator build-for-testing and generic iPhoneOS build passed without booting a simulator. XCTest compiled but did not execute.
+- An unsigned generic iOS Release archive passed. Its `Info.plist` reports bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, build `6`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, iPhone/iPad AppIcon entries, and Boolean `ITSAppUsesNonExemptEncryption = false`.
+- The microphone path now reconnects routine audio-engine configuration changes, removes the old tap before reading a changed route format, validates input/output formats, derives a 120 ms tap buffer from the active sample rate, and stops/untaps before releasing an engine. This is a reasoned fix for the reported crash until physical-iPhone testing or an `.ips` report confirms the exact signature.

@@ -1,12 +1,25 @@
 import Foundation
 
+struct NativeAccountDeletionOutcome: Equatable, Sendable {
+    let credentialCleanupSucceeded: Bool
+
+    static let complete = NativeAccountDeletionOutcome(credentialCleanupSucceeded: true)
+    static let credentialCleanupFailed = NativeAccountDeletionOutcome(
+        credentialCleanupSucceeded: false
+    )
+}
+
 protocol NativeAPIProviding: Sendable {
     func configuration() async throws -> CloudConfiguration
     func cachedIdentity() async throws -> CloudIdentity?
+    func cachedAcceptedTermsVersion() async throws -> String?
     func restoreSession() async throws -> CloudIdentity?
     func signIn(email: String, password: String) async throws -> CloudIdentity
     func createAccount(name: String, email: String, password: String) async throws -> CloudIdentity
+    func legalStatus() async throws -> CloudLegalStatus
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus
     func signOut() async throws
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome
     func notebooks() async throws -> [CloudNotebook]
     func createNotebook(id: UUID, name: String) async throws -> CloudNotebook
     func pages() async throws -> [CloudPage]
@@ -21,6 +34,7 @@ enum NativeAPIError: Error, LocalizedError, Sendable {
     case responseTooLarge
     case blockedRedirect
     case staleOperation
+    case termsAcceptanceRequired(CloudLegalMetadata?)
     case conflict(CloudPage?)
     case server(status: Int, message: String)
     case transport
@@ -41,6 +55,8 @@ enum NativeAPIError: Error, LocalizedError, Sendable {
             "Sideleaf blocked a connection that left its secure server."
         case .staleOperation:
             "The account changed while this request was running."
+        case .termsAcceptanceRequired:
+            "Review and accept the current Terms of Service to continue."
         case .conflict:
             "Another edit is already in the cloud. Review both copies before continuing."
         case .server(_, let message):
@@ -68,6 +84,10 @@ actor NativeAPI: NativeAPIProviding {
     private struct ErrorEnvelope: Decodable {
         let error: String?
         let message: String?
+        let legal: CloudLegalMetadata?
+    }
+
+    private struct ErrorCodeEnvelope: Decodable {
         let code: String?
     }
 
@@ -75,7 +95,12 @@ actor NativeAPI: NativeAPIProviding {
         let current: CloudPage?
     }
 
+    private struct DeletionEnvelope: Decodable {
+        let deleted: Bool
+    }
+
     private let tokenStore: KeychainSessionStore
+    private let accountDeletionCredentialCleanup: @Sendable () throws -> Void
     private let sendRequest: @Sendable (URLRequest) async throws -> (Data, URLResponse)
     private var authenticationGeneration = 0
 
@@ -95,14 +120,18 @@ actor NativeAPI: NativeAPIProviding {
             delegateQueue: nil
         )
         self.tokenStore = tokenStore
+        accountDeletionCredentialCleanup = { try tokenStore.delete() }
         sendRequest = { request in try await session.data(for: request) }
     }
 
     init(
         tokenStore: KeychainSessionStore,
+        accountDeletionCredentialCleanup: (@Sendable () throws -> Void)? = nil,
         sendRequest: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)
     ) {
         self.tokenStore = tokenStore
+        self.accountDeletionCredentialCleanup = accountDeletionCredentialCleanup
+            ?? { try tokenStore.delete() }
         self.sendRequest = sendRequest
     }
 
@@ -114,6 +143,10 @@ actor NativeAPI: NativeAPIProviding {
 
     func cachedIdentity() async throws -> CloudIdentity? {
         try tokenStore.load()?.identity
+    }
+
+    func cachedAcceptedTermsVersion() async throws -> String? {
+        try tokenStore.load()?.acceptedTermsVersion
     }
 
     func restoreSession() async throws -> CloudIdentity? {
@@ -135,10 +168,14 @@ actor NativeAPI: NativeAPIProviding {
                 authenticationGeneration &+= 1
                 return nil
             }
+            let acceptedTermsVersion = storedSession.identity.id == identity.id
+                ? storedSession.acceptedTermsVersion
+                : nil
             try tokenStore.save(
                 StoredNativeSession(
                     token: payload.sessionToken ?? storedSession.token,
-                    identity: identity
+                    identity: identity,
+                    acceptedTermsVersion: acceptedTermsVersion
                 )
             )
             authenticationGeneration &+= 1
@@ -151,6 +188,7 @@ actor NativeAPI: NativeAPIProviding {
     func signIn(email: String, password: String) async throws -> CloudIdentity {
         authenticationGeneration &+= 1
         let generation = authenticationGeneration
+        let priorSession = try? tokenStore.load()
         let body = try encoded(["email": email, "password": password])
         let payload = try await send(
             path: "auth/sign-in/email",
@@ -164,7 +202,18 @@ actor NativeAPI: NativeAPIProviding {
         guard generation == authenticationGeneration else {
             throw NativeAPIError.staleOperation
         }
-        do { try tokenStore.save(StoredNativeSession(token: token, identity: identity)) }
+        let acceptedTermsVersion = priorSession?.identity.id == identity.id
+            ? priorSession?.acceptedTermsVersion
+            : nil
+        do {
+            try tokenStore.save(
+                StoredNativeSession(
+                    token: token,
+                    identity: identity,
+                    acceptedTermsVersion: acceptedTermsVersion
+                )
+            )
+        }
         catch {
             try? tokenStore.delete()
             throw error
@@ -198,6 +247,36 @@ actor NativeAPI: NativeAPIProviding {
         return identity
     }
 
+    func legalStatus() async throws -> CloudLegalStatus {
+        let payload = try await send(
+            path: "legal/status",
+            method: "GET",
+            authentication: .required
+        )
+        try requireSuccess(payload)
+        let status = try decode(CloudLegalStatus.self, from: payload.data)
+        try cacheLegalStatus(status, refreshedToken: payload.sessionToken)
+        return status
+    }
+
+    func acceptLegal(termsVersion: String) async throws -> CloudLegalStatus {
+        let acceptance = CloudLegalAcceptance(
+            termsVersion: termsVersion,
+            acceptedTerms: true,
+            recordingLawAcknowledged: true
+        )
+        let payload = try await send(
+            path: "legal/acceptance",
+            method: "POST",
+            body: try encoded(acceptance),
+            authentication: .required
+        )
+        try requireSuccess(payload)
+        let status = try decode(CloudLegalStatus.self, from: payload.data)
+        try cacheLegalStatus(status, refreshedToken: payload.sessionToken)
+        return status
+    }
+
     func signOut() async throws {
         authenticationGeneration &+= 1
         let token = try? tokenStore.load()?.token
@@ -207,6 +286,29 @@ actor NativeAPI: NativeAPIProviding {
         guard let token else { return }
         Task { [weak self] in
             await self?.revoke(token: token)
+        }
+    }
+
+    func deleteAccount() async throws -> NativeAccountDeletionOutcome {
+        let payload = try await send(
+            path: "account",
+            method: "DELETE",
+            body: try encoded(["confirmation": "DELETE"]),
+            authentication: .required
+        )
+        try requireSuccess(payload, allowForbiddenMessage: true)
+        guard try decode(DeletionEnvelope.self, from: payload.data).deleted else {
+            throw NativeAPIError.invalidResponse
+        }
+        authenticationGeneration &+= 1
+        do {
+            try accountDeletionCredentialCleanup()
+            return .complete
+        } catch {
+            // The server has already confirmed permanent deletion. Credential
+            // cleanup is a separate device issue and must not turn that success
+            // into a failed remote deletion or block account-scoped data purge.
+            return .credentialCleanupFailed
         }
     }
 
@@ -355,7 +457,8 @@ actor NativeAPI: NativeAPIProviding {
 
     private func requireSuccess(
         _ payload: Payload,
-        authenticationAttempt: Bool = false
+        authenticationAttempt: Bool = false,
+        allowForbiddenMessage: Bool = false
     ) throws {
         let status = payload.response.statusCode
         guard (200..<300).contains(status) else {
@@ -366,16 +469,36 @@ actor NativeAPI: NativeAPIProviding {
                 )
             }
             let envelope = try? JSONDecoder().decode(ErrorEnvelope.self, from: payload.data)
+            let code = (try? JSONDecoder().decode(ErrorCodeEnvelope.self, from: payload.data))?.code
+            // Treat the protocol status itself as authoritative. A future server
+            // may add fields that this app cannot decode yet; that must not turn
+            // a legal gate into a generic error or leave stale acceptance cached.
+            if status == 428 || code == "TERMS_ACCEPTANCE_REQUIRED" {
+                try? cacheAcceptedTermsVersion(nil, refreshedToken: payload.sessionToken)
+                throw NativeAPIError.termsAcceptanceRequired(envelope?.legal)
+            }
             let candidate = envelope?.error ?? envelope?.message
-            let message = safeMessage(candidate, status: status, code: envelope?.code)
+            let message = safeMessage(
+                candidate,
+                status: status,
+                code: code,
+                allowForbiddenMessage: allowForbiddenMessage
+            )
             throw NativeAPIError.server(status: status, message: message)
         }
     }
 
-    private func safeMessage(_ candidate: String?, status: Int, code: String?) -> String {
+    private func safeMessage(
+        _ candidate: String?,
+        status: Int,
+        code: String?,
+        allowForbiddenMessage: Bool = false
+    ) -> String {
         if status == 429 { return "Too many attempts. Wait a moment and try again." }
         if status == 413 { return "This page is too large to sync. Split it into smaller pages." }
-        if status == 403 { return "This request was not accepted by the Sideleaf server." }
+        if status == 403, !allowForbiddenMessage {
+            return "This request was not accepted by the Sideleaf server."
+        }
         if status >= 500 { return "The notebook server is unavailable. Your device draft is unchanged." }
         guard let candidate else {
             return code == nil
@@ -388,6 +511,32 @@ actor NativeAPI: NativeAPIProviding {
             .prefix(300)
         let cleaned = String(String.UnicodeScalarView(value))
         return cleaned.isEmpty ? "The notebook server rejected this request." : cleaned
+    }
+
+    private func cacheLegalStatus(
+        _ status: CloudLegalStatus,
+        refreshedToken: String?
+    ) throws {
+        try cacheAcceptedTermsVersion(
+            status.confirmsCurrentTerms ? status.legal.termsVersion : nil,
+            refreshedToken: refreshedToken
+        )
+    }
+
+    private func cacheAcceptedTermsVersion(
+        _ version: String?,
+        refreshedToken: String?
+    ) throws {
+        guard let session = try tokenStore.load() else {
+            throw NativeAPIError.notAuthenticated
+        }
+        try tokenStore.save(
+            StoredNativeSession(
+                token: refreshedToken ?? session.token,
+                identity: session.identity,
+                acceptedTermsVersion: version
+            )
+        )
     }
 
     private func endpoint(_ path: String) -> URL? {

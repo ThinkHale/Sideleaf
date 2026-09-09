@@ -347,6 +347,93 @@ export function createBilling(db: Database, config: Config, injectedStripe?: Str
     return c.json({ url: session.url });
   });
 
+  async function expireOpenCheckouts(uid: string) {
+    try {
+      const [snapshot] = await db.select().from(billingCustomers).where(ownedCustomer(uid));
+      if (!snapshot) return { expired: 0 };
+      let expired = 0;
+      if (snapshot.customerId) {
+        const client = requireProvider();
+        const sessions = await client.checkout.sessions.list({
+          customer: snapshot.customerId,
+          status: 'open',
+          limit: 100,
+        });
+        if (sessions.has_more)
+          throw new BillingError('This billing account needs a support review.', 409);
+        const owned = sessions.data.filter(
+          (session) =>
+            session.id === snapshot.checkoutSessionId ||
+            (session.mode === 'subscription' &&
+              session.client_reference_id === uid &&
+              session.metadata?.sideleaf_user_id === uid &&
+              session.metadata?.sideleaf_price_id === settings.priceId),
+        );
+        for (const session of owned) {
+          try {
+            await client.checkout.sessions.expire(session.id);
+          } catch (error) {
+            let current: Stripe.Checkout.Session;
+            try {
+              current = await client.checkout.sessions.retrieve(session.id);
+            } catch {
+              throw error;
+            }
+            if (id(current.customer) && id(current.customer) !== snapshot.customerId)
+              throw new BillingError('The checkout does not belong to this billing account.', 409);
+            if (current.status === 'open') throw error;
+          }
+        }
+        expired = owned.length;
+      }
+      const stable = await db.transaction(async (tx) => {
+        const [account] = await tx
+          .select({ id: user.id })
+          .from(user)
+          .where(eq(user.id, uid))
+          .for('update');
+        if (!account) throw new BillingError('The account no longer exists.', 404);
+        const [current] = await tx
+          .select()
+          .from(billingCustomers)
+          .where(ownedCustomer(uid))
+          .for('update');
+        if (!current) return false;
+        if (
+          current.customerId !== snapshot.customerId ||
+          current.checkoutAttempt !== snapshot.checkoutAttempt ||
+          current.checkoutSessionId !== snapshot.checkoutSessionId
+        )
+          return false;
+        await tx
+          .update(billingCustomers)
+          .set({
+            checkoutAttempt: crypto.randomUUID(),
+            checkoutSessionId: null,
+            updatedAt: new Date(),
+          })
+          .where(ownedCustomer(uid));
+        return true;
+      });
+      if (!stable)
+        throw new BillingError(
+          'Billing activity changed while cleanup was running. Please retry.',
+          409,
+        );
+      return { expired };
+    } catch (error) {
+      if (error instanceof BillingError) throw error;
+      throw new BillingError(
+        'Unfinished checkout cleanup could not be completed. Please retry shortly.',
+      );
+    }
+  }
+
+  const expireOpenCheckoutsRoute = guard(async (c) => {
+    await parseEmptyInput(c);
+    return c.json(await expireOpenCheckouts(c.get('userId')));
+  });
+
   async function reconcileCharge(tx: Transaction, customer: Customer, event: Stripe.Event) {
     const client = requireProvider();
     const isDispute = event.type.startsWith('charge.dispute.');
@@ -508,5 +595,14 @@ export function createBilling(db: Database, config: Config, injectedStripe?: Str
         );
     }
   }
-  return { webhook, status, checkout, portal, entitlement, beforeAccountDeletion };
+  return {
+    webhook,
+    status,
+    checkout,
+    portal,
+    expireOpenCheckouts,
+    expireOpenCheckoutsRoute,
+    entitlement,
+    beforeAccountDeletion,
+  };
 }

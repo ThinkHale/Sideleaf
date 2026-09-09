@@ -69,7 +69,7 @@ struct NotebookLibrary: View {
                     }
                 }
                 if sync.hasAccount {
-                    Section(sync.isOffline ? "Account pages · Offline" : "Synced pages") {
+                    Section(accountPagesSectionTitle) {
                         pageRows(accountPages)
                     }
                     if !guestPages.isEmpty {
@@ -89,10 +89,11 @@ struct NotebookLibrary: View {
             .toolbar {
                 ToolbarItem(placement: .principal) { SideleafWordmark() }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button("Account and sync", systemImage: accountSymbol) {
+                    Button(sync.accountActionLabel, systemImage: accountSymbol) {
                         showAccount = true
                     }
                     .labelStyle(.iconOnly)
+                    .accessibilityHint(sync.accountActionHint)
                     Button("New page", systemImage: "plus") {
                         let page = LocalPage()
                         if let identity = sync.identity {
@@ -129,6 +130,9 @@ struct NotebookLibrary: View {
                 preferredCompactColumn = .sidebar
             }
         }
+        .onChange(of: sync.shouldPresentTermsAcceptance) { _, required in
+            if required { showAccount = true }
+        }
     }
 
     private var visiblePages: [LocalPage] {
@@ -149,7 +153,15 @@ struct NotebookLibrary: View {
         visiblePages.filter { $0.ownerUserID == nil }
     }
 
+    private var accountPagesSectionTitle: String {
+        if sync.isVerifyingRestoredSession { return "Account pages · Verifying" }
+        if sync.requiresTermsAcceptance { return "Account pages · Review terms" }
+        return sync.isOffline ? "Account pages · Offline" : "Synced pages"
+    }
+
     private var accountSymbol: String {
+        if sync.isVerifyingRestoredSession { return "person.crop.circle.badge.clock" }
+        if sync.requiresTermsAcceptance { return "person.crop.circle.badge.exclamationmark" }
         if sync.isOffline { return "icloud.slash" }
         return sync.isConnected ? "person.crop.circle.badge.checkmark" : "person.crop.circle"
     }
@@ -167,7 +179,7 @@ struct NotebookLibrary: View {
                         Text(sync.status(for: page).message)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -182,6 +194,7 @@ struct NativeNotebookPage: View {
     @Environment(\.modelContext) private var context
     @Environment(NotebookSync.self) private var sync
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var tool: NotebookTool = .type
     @State private var transcription = LiveTranscription()
     @State private var showTranscription = false
@@ -195,23 +208,19 @@ struct NativeNotebookPage: View {
                 TextField("Page title", text: titleBinding)
                     .font(.largeTitle)
                     .fontDesign(.serif)
-                HStack(spacing: 6) {
-                    Image(systemName: statusSymbol)
-                    Text(sync.status(for: page).message)
-                    if canRestoreCloudCopy {
-                        Button("Restore to cloud") {
-                            Task { await sync.restoreDeviceCopyToCloud(page, context: context) }
-                        }
-                        .font(.caption)
-                    } else if canRetrySync {
-                        Button("Retry") { Task { await sync.syncNow(page, context: context) } }
-                            .font(.caption)
-                    }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { pageStatusContent }
+                    VStack(alignment: .leading, spacing: 8) { pageStatusContent }
                 }
                 .font(.caption)
                 .foregroundStyle(statusColor)
                 if page.conflictDocumentData != nil { conflictActions }
-                if horizontalSizeClass != .compact { regularEditorControls }
+                if !prefersCompactControls {
+                    ViewThatFits(in: .horizontal) {
+                        regularEditorControls
+                        compactEditorControls
+                    }
+                }
                 Text(toolHelp).font(.caption).foregroundStyle(.secondary)
                 if let transcript = page.localTranscript, !transcript.isEmpty {
                     GroupBox("On-device transcript") {
@@ -246,6 +255,7 @@ struct NativeNotebookPage: View {
                                 sync.pageDidChange(page, context: context)
                             }
                             .labelStyle(.iconOnly)
+                            .frame(minWidth: 44, minHeight: 44)
                         }
                     }
                 }
@@ -254,20 +264,32 @@ struct NativeNotebookPage: View {
             .background(Color(red: 1, green: 0.99, blue: 0.97))
         }
         .safeAreaInset(edge: .bottom) {
-            if horizontalSizeClass == .compact { compactEditorControls }
+            if prefersCompactControls { compactEditorControls }
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button(
-                    transcription.isListening ? "Transcription is listening" : "Live transcription",
-                    systemImage: transcription.isListening ? "mic.fill" : "mic"
+                    transcriptionToolbarLabel,
+                    systemImage: transcription.isListening
+                        ? "mic.fill"
+                        : (sync.canUseLiveTranscription ? "mic" : "mic.slash")
                 ) {
-                    showTranscription = true
+                    if sync.canUseLiveTranscription {
+                        showTranscription = true
+                    } else {
+                        openAccount()
+                    }
                 }
-                .tint(transcription.isListening ? .red : .olive)
-                    .labelStyle(.iconOnly)
-                Button("Account and sync", systemImage: "person.crop.circle") { openAccount() }
+                .tint(
+                    transcription.isListening
+                        ? .red
+                        : (sync.canUseLiveTranscription ? .olive : .secondary)
+                )
                 .labelStyle(.iconOnly)
+                .accessibilityHint(transcriptionToolbarHint)
+                Button(sync.accountActionLabel, systemImage: "person.crop.circle") { openAccount() }
+                .labelStyle(.iconOnly)
+                .accessibilityHint(sync.accountActionHint)
             }
         }
         .sheet(isPresented: $showTranscription) {
@@ -279,6 +301,51 @@ struct NativeNotebookPage: View {
         .onDisappear {
             Task { await transcription.stop() }
         }
+    }
+
+    @ViewBuilder
+    private var pageStatusContent: some View {
+        Label(sync.status(for: page).message, systemImage: statusSymbol)
+            .fixedSize(horizontal: false, vertical: true)
+        if canRestoreCloudCopy {
+            Button("Restore to cloud") {
+                Task { await sync.restoreDeviceCopyToCloud(page, context: context) }
+            }
+            .frame(minHeight: 44)
+        } else if canRetrySync {
+            Button("Retry") { Task { await sync.syncNow(page, context: context) } }
+                .frame(minHeight: 44)
+        }
+    }
+
+    private var prefersCompactControls: Bool {
+        horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize
+    }
+
+    private var transcriptionToolbarLabel: String {
+        if !sync.canUseLiveTranscription {
+            return "Review terms to use live transcription"
+        }
+        switch transcription.state {
+        case .preparing, .downloadingAssets, .requestingPermission, .finalizing:
+            return "Live transcription: \(transcription.status)"
+        case .listening:
+            return "Live transcription, microphone active"
+        case .interrupted, .unavailable, .failed:
+            return "Live transcription: \(transcription.status)"
+        case .idle, .stopped:
+            return "Live transcription"
+        }
+    }
+
+    private var transcriptionToolbarHint: String {
+        if !sync.canUseLiveTranscription {
+            return "Opens account settings for the required Terms review."
+        }
+        if transcription.isListening {
+            return "Opens transcription controls. The microphone is active."
+        }
+        return "Opens on-device live transcription."
     }
 
     private var titleBinding: Binding<String> {
@@ -330,20 +397,9 @@ struct NativeNotebookPage: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("This page changed on another device. Both versions are still preserved.")
                     .font(.callout)
-                HStack {
-                    Button("Keep both") {
-                        _ = sync.resolveConflictKeepingBoth(page, context: context)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Button("Use cloud") {
-                        _ = sync.resolveConflictUsingCloud(page, context: context)
-                    }
-                    .buttonStyle(.bordered)
-                    Menu("More") {
-                        Button("Keep this device version") {
-                            sync.resolveConflictKeepingLocal(page, context: context)
-                        }
-                    }
+                ViewThatFits(in: .horizontal) {
+                    HStack { conflictButtons }
+                    VStack(alignment: .leading, spacing: 10) { conflictButtons }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -351,6 +407,23 @@ struct NativeNotebookPage: View {
             Label("Sync conflict", systemImage: "exclamationmark.triangle.fill")
         }
         .tint(.orange)
+    }
+
+    @ViewBuilder
+    private var conflictButtons: some View {
+        Button("Keep both") {
+            _ = sync.resolveConflictKeepingBoth(page, context: context)
+        }
+        .buttonStyle(.borderedProminent)
+        Button("Use cloud") {
+            _ = sync.resolveConflictUsingCloud(page, context: context)
+        }
+        .buttonStyle(.bordered)
+        Menu("More") {
+            Button("Keep this device version") {
+                sync.resolveConflictKeepingLocal(page, context: context)
+            }
+        }
     }
 
     private var compactEditorControls: some View {
@@ -427,12 +500,16 @@ private struct NativeAccountSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(NotebookSync.self) private var sync
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var mode = NativeAccountMode.signIn
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var acceptedTerms = false
+    @State private var recordingLawAcknowledged = false
     @State private var working = false
     @State private var confirmAdoption = false
+    @State private var confirmAccountDeletion = false
 
     var body: some View {
         NavigationStack {
@@ -442,10 +519,15 @@ private struct NativeAccountSheet: View {
                     Section { ProgressView("Restoring your account…") }
                 case .signedOut:
                     signedOutContent
+                case .termsRequired(let identity, let offline):
+                    termsRequiredContent(identity, offline: offline)
                 case .signedIn(let identity):
                     signedInContent(identity, offline: false)
                 case .signedInOffline(let identity):
                     signedInContent(identity, offline: true)
+                }
+                if sync.hasPendingDeletedAccountPageCleanup {
+                    deletedAccountPageCleanupSection
                 }
                 if let error = sync.accountError ?? sync.syncError {
                     Section {
@@ -459,6 +541,7 @@ private struct NativeAccountSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .disabled(working)
                 }
             }
             .confirmationDialog(
@@ -473,17 +556,39 @@ private struct NativeAccountSheet: View {
             } message: {
                 Text("Sideleaf will upload their typed notes, marks, and on-device transcript text. PencilKit ink remains only on this device.")
             }
+            .confirmationDialog(
+                "Permanently delete this Sideleaf account?",
+                isPresented: $confirmAccountDeletion,
+                titleVisibility: .visible
+            ) {
+                Button("Delete account and cached pages", role: .destructive) {
+                    run(clearPassword: false) {
+                        let success = await sync.deleteAccount(context: context)
+                        if success, sync.accountError == nil { dismiss() }
+                        return success
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes the account and its cloud data, then removes this account's cached pages from this device. Unrelated device-only drafts remain. If you began an existing subscription on the Sideleaf website, manage it there before retrying. For security, the server may ask you to sign out and sign in again before retrying.")
+            }
+            .onChange(of: mode) {
+                acceptedTerms = false
+                recordingLawAcknowledged = false
+            }
+            .onChange(of: sync.legalMetadata?.termsVersion) {
+                acceptedTerms = false
+                recordingLawAcknowledged = false
+            }
         }
-        .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(working)
+        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
     }
 
     @ViewBuilder
     private var signedOutContent: some View {
         Section {
-            Picker("Account action", selection: $mode) {
-                ForEach(NativeAccountMode.allCases) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
+            accountModePicker
             if mode == .create {
                 TextField("Name", text: $name)
                     .textContentType(.name)
@@ -494,6 +599,17 @@ private struct NativeAccountSheet: View {
                 .keyboardType(.emailAddress)
             SecureField("Password", text: $password)
                 .textContentType(mode == .create ? .newPassword : .password)
+        }
+        if mode == .create {
+            Section {
+                legalAcknowledgementRows
+            } header: {
+                Text("Required acknowledgements")
+            } footer: {
+                Text("These acknowledgements apply to your Sideleaf account. Sideleaf does not replace any notice or permission required for a particular conversation.")
+            }
+        }
+        Section {
             Button(working ? "Please wait…" : mode.rawValue) {
                 run {
                     if mode == .signIn {
@@ -503,16 +619,118 @@ private struct NativeAccountSheet: View {
                         name: name,
                         email: email,
                         password: password,
+                        acceptedTerms: acceptedTerms,
+                        recordingLawAcknowledged: recordingLawAcknowledged,
                         context: context
                     )
                 }
             }
-            .disabled(!credentialsAreValid || working || sync.configuration?.passwordAuth == false)
+            .disabled(
+                !credentialsAreValid
+                    || (mode == .create && !legalAcknowledgementsAreComplete)
+                    || working
+                    || sync.configuration?.passwordAuth == false
+            )
         } footer: {
             Text("Your session is kept in this device's Keychain. Sideleaf server credentials are never stored in the app.")
         }
         if sync.configuration?.passwordAuth == false {
             Section { Text("Email and password sign-in is unavailable on the server right now.") }
+        }
+    }
+
+    @ViewBuilder
+    private var accountModePicker: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            Picker("Account action", selection: $mode) {
+                ForEach(NativeAccountMode.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.menu)
+        } else {
+            Picker("Account action", selection: $mode) {
+                ForEach(NativeAccountMode.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    @ViewBuilder
+    private func termsRequiredContent(_ identity: CloudIdentity, offline: Bool) -> some View {
+        Section {
+            LabeledContent("Name", value: identity.name)
+            LabeledContent("Email", value: identity.email)
+            Text("Review and accept the current Terms of Service before Sideleaf syncs or starts live transcription. Your existing device notes remain available.")
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Terms review required")
+        } footer: {
+            if offline {
+                Text("Connect to Sideleaf to record your acceptance. You can continue reading and editing device copies while offline.")
+            }
+        }
+
+        Section {
+            legalAcknowledgementRows
+            Button(working ? "Recording acceptance…" : "Accept and continue") {
+                run {
+                    await sync.acceptTerms(
+                        acceptedTerms: acceptedTerms,
+                        recordingLawAcknowledged: recordingLawAcknowledged,
+                        context: context
+                    )
+                }
+            }
+            .disabled(!legalAcknowledgementsAreComplete || working)
+        } header: {
+            Text("Required acknowledgements")
+        } footer: {
+            Text("Sideleaf records the Terms version and acceptance time. You remain responsible for each conversation you transcribe.")
+        }
+
+        Section {
+            Button("Sign out", role: .destructive) {
+                run {
+                    let success = await sync.signOut()
+                    if success { dismiss() }
+                    return success
+                }
+            }
+            .disabled(working)
+        } footer: {
+            Text("Signed-out pages stay on this device and reappear when this account signs in again.")
+        }
+        accountDeletionSection
+    }
+
+    @ViewBuilder
+    private var legalAcknowledgementRows: some View {
+        if let version = sync.legalMetadata?.termsVersion {
+            Toggle("I agree to the Terms of Service", isOn: $acceptedTerms)
+            Link("View Terms of Service", destination: sync.termsURL)
+            Link("View Privacy Notice", destination: sync.privacyURL)
+            Toggle(isOn: $recordingLawAcknowledged) {
+                Text(sync.recordingLawAcknowledgement)
+            }
+            LabeledContent("Terms version", value: version)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let effectiveDate = sync.legalEffectiveDateText {
+                LabeledContent("Effective", value: effectiveDate)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Link("View Terms of Service", destination: sync.termsURL)
+            Link("View Privacy Notice", destination: sync.privacyURL)
+            Label(
+                "Connect to load the current Terms version and acknowledgements.",
+                systemImage: "wifi.exclamationmark"
+            )
+            .foregroundStyle(.secondary)
+            Button(working ? "Loading current terms…" : "Load current terms") {
+                run(clearPassword: false) { await sync.loadLegalMetadata() }
+            }
+            .disabled(working)
         }
     }
 
@@ -563,9 +781,44 @@ private struct NativeAccountSheet: View {
         } footer: {
             Text("Signed-out pages stay on this device and reappear when this account signs in again.")
         }
+        accountDeletionSection
+    }
+
+    private var accountDeletionSection: some View {
+        Section {
+            Button("Delete account…", role: .destructive) {
+                confirmAccountDeletion = true
+            }
+            .disabled(working)
+        } header: {
+            Text("Delete account")
+        } footer: {
+            Text("Deletion is permanent. It removes cloud data and this account's cached pages, but keeps unrelated device-only drafts. Manage any existing web subscription on the Sideleaf website before retrying deletion.")
+        }
+    }
+
+    private var deletedAccountPageCleanupSection: some View {
+        Section {
+            Button(working ? "Removing cached pages…" : "Retry cached-page removal") {
+                run(clearPassword: false) {
+                    let success = sync.retryDeletedAccountPageCleanup(context: context)
+                    if success, sync.accountError == nil { dismiss() }
+                    return success
+                }
+            }
+            .disabled(working)
+        } header: {
+            Text("Finish device cleanup")
+        } footer: {
+            Text("This retry only removes cached pages belonging to the account the server already deleted. It does not send another account-deletion request.")
+        }
     }
 
     private var guestPages: [LocalPage] { sync.guestPages(from: pages) }
+
+    private var legalAcknowledgementsAreComplete: Bool {
+        sync.legalMetadata != nil && acceptedTerms && recordingLawAcknowledged
+    }
 
     private var credentialsAreValid: Bool {
         let hasEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).contains("@")
@@ -578,12 +831,15 @@ private struct NativeAccountSheet: View {
         }
     }
 
-    private func run(_ operation: @escaping @MainActor () async -> Bool) {
+    private func run(
+        clearPassword: Bool = true,
+        _ operation: @escaping @MainActor () async -> Bool
+    ) {
         guard !working else { return }
         working = true
         Task { @MainActor in
             _ = await operation()
-            password = ""
+            if clearPassword { password = "" }
             working = false
         }
     }
@@ -601,7 +857,7 @@ private struct LiveTranscriptionSheet: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(NotebookSync.self) private var sync
-    @State private var consentConfirmed = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var confirmDiscard = false
     @State private var appendIssue: AppendIssue?
 
@@ -615,20 +871,39 @@ private struct LiveTranscriptionSheet: View {
                     Text("Sideleaf uses this device's microphone and Apple's on-device speech model. Audio is held briefly in memory, never saved as a recording, and never uploaded. Choose Add to page to save transcript text with the page and sync it as personal notes.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                    Toggle("I confirmed everyone has consented", isOn: $consentConfirmed)
-                        .disabled(transcription.isBusy)
+                    GroupBox {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("You are responsible for following applicable recording and interception laws, informing participants, and obtaining any permission required for this conversation.")
+                                .font(.callout)
+                            Link("View Terms of Service", destination: sync.termsURL)
+                                .font(.callout.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } label: {
+                        Label("Recording responsibility", systemImage: "person.2.badge.gearshape")
+                    }
                     if let errorMessage = transcription.errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
+                            .accessibilityLabel("Live transcription error")
+                            .accessibilityValue(errorMessage)
                     } else {
                         Label(
                             transcription.status,
                             systemImage: transcription.isListening ? "mic.fill" : "info.circle"
                         )
                         .foregroundStyle(transcription.isListening ? .red : .secondary)
+                        .accessibilityLabel("Live transcription status")
+                        .accessibilityValue(transcription.status)
                     }
                     if transcription.isBusy && !transcription.isListening {
-                        ProgressView()
+                        if let progress = transcription.assetDownloadProgress {
+                            ProgressView(progress)
+                                .accessibilityLabel("Downloading on-device language assets")
+                        } else {
+                            ProgressView("Preparing live transcription")
+                                .accessibilityValue(transcription.status)
+                        }
                     }
                     GroupBox("Live text") {
                         Text(transcription.transcript.isEmpty ? "Your transcript will appear here." : transcription.transcript)
@@ -636,31 +911,9 @@ private struct LiveTranscriptionSheet: View {
                             .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
                             .textSelection(.enabled)
                     }
-                    HStack {
-                        if transcription.isListening {
-                            Button("Stop", systemImage: "stop.fill") {
-                                Task { await transcription.stop() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                        } else {
-                            Button("Start", systemImage: "mic.fill") {
-                                Task {
-                                    await transcription.start(
-                                        clearTranscript: transcription.transcript.isEmpty
-                                    )
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!consentConfirmed || transcription.isBusy)
-                        }
-                        if !transcription.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                           !transcription.isBusy {
-                            Button("Add to page", systemImage: "text.badge.plus") {
-                                addTranscriptToPage()
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 12) { transcriptionActions }
+                        VStack(alignment: .leading, spacing: 12) { transcriptionActions }
                     }
                     if transcription.shouldOfferMicrophoneSettings {
                         Link("Open Sideleaf Settings", destination: URL(string: UIApplication.openSettingsURLString)!)
@@ -708,8 +961,44 @@ private struct LiveTranscriptionSheet: View {
                 || transcription.state == .finalizing
                 || hasUncommittedTranscript
         )
+        .onChange(of: sync.canUseLiveTranscription) { _, permitted in
+            if !permitted { Task { await transcription.stop() } }
+        }
+        .onChange(of: transcription.status) { oldStatus, newStatus in
+            guard oldStatus != newStatus else { return }
+            AccessibilityNotification.Announcement(newStatus).post()
+        }
         .onDisappear { Task { await transcription.stop() } }
-        .presentationDetents([.medium, .large])
+        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+    }
+
+    @ViewBuilder
+    private var transcriptionActions: some View {
+        if transcription.isListening {
+            Button("Stop", systemImage: "stop.fill") {
+                Task { await transcription.stop() }
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.red)
+        } else {
+            Button("Start", systemImage: "mic.fill") {
+                Task {
+                    await transcription.start(
+                        clearTranscript: transcription.transcript.isEmpty
+                    )
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!sync.canUseLiveTranscription || transcription.isBusy)
+        }
+        if !transcription.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !transcription.isBusy
+        {
+            Button("Add to page", systemImage: "text.badge.plus") {
+                addTranscriptToPage()
+            }
+            .buttonStyle(.bordered)
+        }
     }
 
     private var hasUncommittedTranscript: Bool {
@@ -734,6 +1023,32 @@ private struct LiveTranscriptionSheet: View {
         }
         transcription.resetTranscript()
         dismiss()
+    }
+}
+
+private extension NotebookSync {
+    var accountActionLabel: String {
+        if isVerifyingRestoredSession { return "Account and sync, verifying session" }
+        switch account {
+        case .restoring:
+            return "Account and sync, restoring"
+        case .signedOut:
+            return "Sign in or create an account"
+        case .termsRequired(_, offline: true):
+            return "Account and sync, Terms review required while offline"
+        case .termsRequired:
+            return "Account and sync, Terms review required"
+        case .signedIn:
+            return "Account and sync, connected"
+        case .signedInOffline:
+            return "Account and sync, offline"
+        }
+    }
+
+    var accountActionHint: String {
+        requiresTermsAcceptance
+            ? "Opens the required Terms review."
+            : "Opens account and synchronization settings."
     }
 }
 

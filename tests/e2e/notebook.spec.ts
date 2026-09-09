@@ -2,12 +2,16 @@ import { test, expect, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { CURRENT_TERMS_VERSION, TERMS_EFFECTIVE_AT } from '../../shared/legal';
 const evidence = path.join(tmpdir(), 'meeting-notebook-qa');
 async function register(page: Page) {
   await page.goto('/');
   await page.getByLabel('Your name').fill('Synthetic QA');
   await page.getByLabel('Email', { exact: true }).fill(`qa-${crypto.randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: false }).fill('local-qa-Password-123');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
 }
@@ -16,6 +20,77 @@ async function waitSaved(page: Page) {
 }
 test.beforeAll(async () => {
   await mkdir(evidence, { recursive: true });
+});
+
+test('legal details remain visible at assent and in account settings', async ({ page }) => {
+  await page.goto('/');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await expect(agreements).toContainText(`Terms version ${CURRENT_TERMS_VERSION}`);
+  await expect(agreements).toContainText(`Effective ${TERMS_EFFECTIVE_AT}`);
+  await expect(page.getByRole('link', { name: 'Terms of Service', exact: true })).toHaveAttribute(
+    'href',
+    /\/terms$/,
+  );
+  await expect(page.getByRole('link', { name: 'Privacy Notice', exact: true })).toHaveAttribute(
+    'href',
+    /\/privacy$/,
+  );
+
+  await page.getByLabel('Your name').fill('Legal links QA');
+  await page.getByLabel('Email', { exact: true }).fill(`legal-${crypto.randomUUID()}@example.test`);
+  await page.getByLabel('Password', { exact: false }).fill('local-qa-Password-123');
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Your notebook, your data' });
+  await expect(
+    settings.getByRole('link', { name: 'Terms of Service', exact: true }),
+  ).toHaveAttribute('href', /\/terms$/);
+  await expect(settings.getByRole('link', { name: 'Privacy Notice', exact: true })).toHaveAttribute(
+    'href',
+    /\/privacy$/,
+  );
+});
+
+test('registration resets assent when the server reports a newer terms version', async ({
+  page,
+}) => {
+  const changedVersion = '2099-01-01.1';
+  await page.route('**/api/legal/acceptance', (route) =>
+    route.fulfill({
+      status: 428,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'TERMS_ACCEPTANCE_REQUIRED',
+        error: 'Review and accept the current Terms of Service to continue.',
+        legal: {
+          termsVersion: changedVersion,
+          effectiveAt: '2099-01-01',
+          termsUrl: 'http://127.0.0.1:5173/terms',
+          privacyUrl: 'http://127.0.0.1:5173/privacy',
+          recordingLawAcknowledgement:
+            'I am responsible for applicable notice and consent requirements.',
+        },
+      }),
+    }),
+  );
+  await page.goto('/');
+  await page.getByLabel('Your name').fill('Changed terms QA');
+  await page
+    .getByLabel('Email', { exact: true })
+    .fill(`changed-${crypto.randomUUID()}@example.test`);
+  await page.getByLabel('Password', { exact: false }).fill('local-qa-Password-123');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+
+  await expect(agreements).toContainText(`Terms version ${changedVersion}`);
+  await expect(agreements.getByRole('checkbox').nth(0)).not.toBeChecked();
+  await expect(agreements.getByRole('checkbox').nth(1)).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Try saving acceptance again' })).toBeDisabled();
 });
 
 test('real account, preparation, note persistence, selection, source changes and export', async ({
@@ -54,7 +129,6 @@ test('real account, preparation, note persistence, selection, source changes and
   );
   await page.getByLabel('Participants', { exact: true }).fill('Alex, Jamie (synthetic)');
   const preparation = page.getByRole('dialog', { name: 'Prepare a meeting', exact: true });
-  await preparation.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Check capture readiness' }).click();
   await expect(
     preparation.getByText('Live transcription is not connected in this build.', { exact: false }),

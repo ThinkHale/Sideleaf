@@ -32,6 +32,9 @@ async function register(page: Page) {
     .getByLabel('Email', { exact: true })
     .fill(`billing-${crypto.randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: false }).fill('local-billing-Password-123');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
 }

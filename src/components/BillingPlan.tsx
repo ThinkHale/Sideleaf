@@ -23,7 +23,7 @@ type CaptureUsage = {
   resetAt: string;
   activeSessionId: string | null;
 };
-type PlanData = { billing: BillingState; usage: CaptureUsage };
+type PlanData = { billing: BillingState; usage: CaptureUsage | null };
 
 function duration(seconds: number) {
   const rounded = Math.max(0, Math.floor(seconds));
@@ -43,7 +43,17 @@ function calendarDate(value: string) {
   });
 }
 
-export function BillingPlan({ config }: { config: ProductConfig }) {
+export function BillingPlan({
+  config,
+  termsRequired = false,
+  beforePageExit = () => undefined,
+  disabled = false,
+}: {
+  config: ProductConfig;
+  termsRequired?: boolean;
+  beforePageExit?: () => void;
+  disabled?: boolean;
+}) {
   const [data, setData] = useState<PlanData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,24 +68,31 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
     setLoading(true);
     setError('');
-    void Promise.all([
-      api<BillingState>('/billing', { signal }),
-      api<CaptureUsage>('/capture/usage', { signal }),
-    ])
-      .then(([billing, usage]) => {
+    const request = termsRequired
+      ? api<BillingState>('/billing', { signal }).then((billing) => ({ billing, usage: null }))
+      : Promise.all([
+          api<BillingState>('/billing', { signal }),
+          api<CaptureUsage>('/capture/usage', { signal }),
+        ]).then(([billing, usage]) => ({ billing, usage }));
+    void request
+      .then(({ billing, usage }) => {
         if (!controller.signal.aborted) setData({ billing, usage });
       })
       .catch(() => {
         if (!controller.signal.aborted) {
           setData(null);
-          setError('We could not load your plan and usage. Your notes are still available.');
+          setError(
+            termsRequired
+              ? 'We could not load your billing status. Try again before managing a subscription.'
+              : 'We could not load your plan and usage. Your notes are still available.',
+          );
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [refresh]);
+  }, [refresh, termsRequired]);
 
   useEffect(() => {
     const reload = () => setRefresh((value) => value + 1);
@@ -101,10 +118,11 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
   }, [billingReturn, loading, data?.billing.plan, refresh]);
 
   async function openBilling(destination: 'checkout' | 'portal') {
-    if (pending || loading) return;
-    setPending(destination);
+    if (disabled || pending || loading) return;
     setError('');
     try {
+      beforePageExit();
+      setPending(destination);
       const response = await api<{ url: string }>(`/billing/${destination}`, {
         method: 'POST',
         body: JSON.stringify({}),
@@ -137,13 +155,16 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
     billing?.status !== 'incomplete_expired';
 
   return (
-    <section className="settings-section billing-section" aria-label="Plan and usage">
+    <section
+      className="settings-section billing-section"
+      aria-label={termsRequired ? 'Plan and billing' : 'Plan and usage'}
+    >
       <div className="billing-heading">
-        <h3>Plan & usage</h3>
+        <h3>{termsRequired ? 'Plan & billing' : 'Plan & usage'}</h3>
         <button
           className="text-button"
           onClick={() => setRefresh((value) => value + 1)}
-          disabled={loading || pending !== null}
+          disabled={disabled || loading || pending !== null}
         >
           <RefreshCw size={14} />
           {loading ? 'Refreshing' : 'Refresh status'}
@@ -155,7 +176,7 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
           {error}
         </p>
       )}
-      {billing && usage && (
+      {billing && (termsRequired || usage) && (
         <>
           {billing.mode === 'test' && (billing.checkoutReady || billing.portalReady) && (
             <div className="notice billing-test">
@@ -191,64 +212,71 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
           {billingReturn === 'canceled' && (
             <p>Checkout was closed. Your current plan is shown above.</p>
           )}
-          <div className="billing-usage">
-            <strong>Live transcription this month</strong>
-            <dl>
-              <div>
-                <dt>Used</dt>
-                <dd>{duration(usage.usedSeconds)}</dd>
-              </div>
-              <div>
-                <dt>Remaining</dt>
-                <dd>
-                  {usage.remainingSeconds === null ? 'Unlimited' : duration(usage.remainingSeconds)}
-                </dd>
-              </div>
-            </dl>
-            {usage.remainingSeconds !== null && (
-              <progress
-                aria-label="Monthly live transcription usage"
-                value={usage.usedSeconds}
-                max={Math.max(usage.usedSeconds + usage.remainingSeconds, 1)}
-              />
-            )}
-            <small>
-              Resets {calendarDate(usage.resetAt)}.
-              {usage.meetingLimitSeconds !== null &&
-                ` Up to ${duration(usage.meetingLimitSeconds)} per meeting.`}
-              {usage.activeSessionId && ' A live session is active. Refresh for its latest usage.'}
-            </small>
-          </div>
-          <div className="plan-row billing-plans">
-            <div className={billing.plan === 'free' ? 'current' : ''}>
-              <strong>Free</strong>
-              <p>
-                Unlimited ordinary notes
-                <br />
-                {config.freeMinutes} live transcription minutes per month
-                <br />
-                {config.meetingMinutes} minutes per meeting
-              </p>
+          {usage && (
+            <div className="billing-usage">
+              <strong>Live transcription this month</strong>
+              <dl>
+                <div>
+                  <dt>Used</dt>
+                  <dd>{duration(usage.usedSeconds)}</dd>
+                </div>
+                <div>
+                  <dt>Remaining</dt>
+                  <dd>
+                    {usage.remainingSeconds === null
+                      ? 'Unlimited'
+                      : duration(usage.remainingSeconds)}
+                  </dd>
+                </div>
+              </dl>
+              {usage.remainingSeconds !== null && (
+                <progress
+                  aria-label="Monthly live transcription usage"
+                  value={usage.usedSeconds}
+                  max={Math.max(usage.usedSeconds + usage.remainingSeconds, 1)}
+                />
+              )}
+              <small>
+                Resets {calendarDate(usage.resetAt)}.
+                {usage.meetingLimitSeconds !== null &&
+                  ` Up to ${duration(usage.meetingLimitSeconds)} per meeting.`}
+                {usage.activeSessionId &&
+                  ' A live session is active. Refresh for its latest usage.'}
+              </small>
             </div>
-            <div className={billing.plan === 'pro' ? 'current' : ''}>
-              <strong>
-                Pro · {proPrice}/{billing.price.interval}
-              </strong>
-              <p>
-                Unlimited live transcription minutes
-                <br />
-                One active session at a time
-                <br />
-                Your plan follows your Sideleaf account
-              </p>
+          )}
+          {!termsRequired && (
+            <div className="plan-row billing-plans">
+              <div className={billing.plan === 'free' ? 'current' : ''}>
+                <strong>Free</strong>
+                <p>
+                  Unlimited ordinary notes
+                  <br />
+                  {config.freeMinutes} live transcription minutes per month
+                  <br />
+                  {config.meetingMinutes} minutes per meeting
+                </p>
+              </div>
+              <div className={billing.plan === 'pro' ? 'current' : ''}>
+                <strong>
+                  Pro · {proPrice}/{billing.price.interval}
+                </strong>
+                <p>
+                  Unlimited live transcription minutes
+                  <br />
+                  One active session at a time
+                  <br />
+                  Your plan follows your Sideleaf account
+                </p>
+              </div>
             </div>
-          </div>
+          )}
           {billing.message && <p>{billing.message}</p>}
           <div className="billing-actions">
-            {billing.plan !== 'pro' && !existingPurchase && (
+            {!termsRequired && billing.plan !== 'pro' && !existingPurchase && (
               <button
                 className="primary"
-                disabled={!billing.checkoutReady || loading || pending !== null}
+                disabled={disabled || !billing.checkoutReady || loading || pending !== null}
                 onClick={() => void openBilling('checkout')}
               >
                 <CreditCard size={16} />
@@ -261,7 +289,7 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
             )}
             {billing.portalReady && (
               <button
-                disabled={loading || pending !== null}
+                disabled={disabled || loading || pending !== null}
                 onClick={() => void openBilling('portal')}
               >
                 <CreditCard size={16} />
@@ -269,7 +297,11 @@ export function BillingPlan({ config }: { config: ProductConfig }) {
               </button>
             )}
           </div>
-          <small>Ordinary notes stay free, even when your transcription allowance runs out.</small>
+          <small>
+            {termsRequired
+              ? 'You can manage or cancel an existing subscription without accepting updated terms.'
+              : 'Ordinary notes stay free, even when your transcription allowance runs out.'}
+          </small>
         </>
       )}
     </section>

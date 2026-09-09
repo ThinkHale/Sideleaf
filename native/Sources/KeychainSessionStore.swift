@@ -4,6 +4,17 @@ import Security
 struct StoredNativeSession: Codable, Equatable, Sendable {
     let token: String
     let identity: CloudIdentity
+    let acceptedTermsVersion: String?
+
+    init(
+        token: String,
+        identity: CloudIdentity,
+        acceptedTermsVersion: String? = nil
+    ) {
+        self.token = token
+        self.identity = identity
+        self.acceptedTermsVersion = acceptedTermsVersion
+    }
 }
 
 struct KeychainSessionStore: Sendable {
@@ -113,6 +124,9 @@ struct KeychainSessionStore: Sendable {
             && !session.identity.name.unicodeScalars.contains(
                 where: CharacterSet.controlCharacters.contains
             )
+            && (session.acceptedTermsVersion.map {
+                isValidField($0, maximumCount: 128)
+            } ?? true)
     }
 
     private func isValidField(_ value: String, maximumCount: Int) -> Bool {

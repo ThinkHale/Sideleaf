@@ -12,6 +12,7 @@ import {
 } from '../server/capture-schema';
 import { notebooks, pages, user } from '../server/schema';
 import { emptyDocument } from '../shared/domain';
+import { CURRENT_TERMS_VERSION } from '../shared/legal';
 import type { CaptureObserver, CaptureProvider, ProviderEvent } from '../server/openai-capture';
 
 const origin = 'https://sideleaf.example';
@@ -85,6 +86,7 @@ function setup() {
   app.get('/api/capture/usage', capture.usageRoute);
   app.get('/api/capture/pages/:pageId', capture.page);
   app.post('/api/capture/start', capture.start);
+  app.post('/api/capture/stop-all', capture.stopAllRoute);
   app.get('/api/capture/:id/events', capture.events);
   app.post('/api/capture/:id/heartbeat', capture.heartbeat);
   app.post('/api/capture/:id/stop', capture.stop);
@@ -98,7 +100,7 @@ function request(path: string, uid = 'alice', method = 'GET', body?: unknown) {
   });
 }
 function start(pageId = alicePage, uid = 'alice', extra = {}) {
-  return request('/start', uid, 'POST', { pageId, sdp, consent: true, ...extra });
+  return request('/start', uid, 'POST', { pageId, sdp, ...extra });
 }
 function maintenance(token = 'synthetic-watchdog-secret') {
   return app.request(`${origin}/api/capture/maintenance`, {
@@ -198,11 +200,10 @@ describe.sequential('server-owned capture and usage', () => {
     expect(usageIntervals(now, now)).toEqual([]);
   });
 
-  it('requires configuration, explicit consent and a fresh session watchdog before upstream creation', async () => {
+  it('requires configuration and a fresh session watchdog before upstream creation', async () => {
     vi.stubEnv('CAPTURE_ENABLED', 'false');
     expect((await start()).status).toBe(503);
     vi.stubEnv('CAPTURE_ENABLED', 'true');
-    expect((await start(alicePage, 'alice', { consent: false })).status).toBe(400);
     expect((await start(alicePage, 'alice', { transcript: 'client-forged text' })).status).toBe(
       400,
     );
@@ -307,6 +308,60 @@ describe.sequential('server-owned capture and usage', () => {
     expect(await capture.accountExport('bob')).toEqual([]);
   });
 
+  it('ends only the signed-in account capture sessions and is idempotent', async () => {
+    const aliceSession = await seededSession({ callId: 'call_alice_cleanup' });
+    const bobSession = await seededSession({
+      userId: 'bob',
+      pageId: bobPage,
+      callId: 'call_bob_cleanup',
+    });
+
+    const stopped = await request('/stop-all', 'alice', 'POST', {});
+    expect(stopped.status, await stopped.clone().text()).toBe(200);
+    expect(await stopped.json()).toEqual({ stopped: 1 });
+    expect(provider.hangup).toHaveBeenCalledWith('call_alice_cleanup');
+    expect(provider.hangup).not.toHaveBeenCalledWith('call_bob_cleanup');
+    expect(
+      (
+        await storage.db
+          .select()
+          .from(captureSessions)
+          .where(eq(captureSessions.id, aliceSession.id))
+      )[0].state,
+    ).toBe('stopped');
+    expect(
+      (
+        await storage.db.select().from(captureSessions).where(eq(captureSessions.id, bobSession.id))
+      )[0].state,
+    ).toBe('live');
+
+    const repeated = await request('/stop-all', 'alice', 'POST', {});
+    expect(await repeated.json()).toEqual({ stopped: 0 });
+    expect(provider.hangup).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps failed account capture cleanup retryable without exposing provider details', async () => {
+    const session = await seededSession({ state: 'stopping', callId: 'call_cleanup_retry' });
+    provider.hangup.mockRejectedValueOnce(new Error('synthetic provider credential detail'));
+
+    const failed = await request('/stop-all', 'alice', 'POST', {});
+    expect(failed.status).toBe(503);
+    expect(await failed.text()).not.toContain('credential detail');
+    expect(
+      (await storage.db.select().from(captureSessions).where(eq(captureSessions.id, session.id)))[0]
+        .state,
+    ).toBe('stopping');
+
+    const retried = await request('/stop-all', 'alice', 'POST', {});
+    expect(retried.status, await retried.clone().text()).toBe(200);
+    expect(await retried.json()).toEqual({ stopped: 1 });
+    expect(
+      (await storage.db.select().from(captureSessions).where(eq(captureSessions.id, session.id)))[0]
+        .state,
+    ).toBe('stopped');
+    expect(provider.hangup).toHaveBeenCalledTimes(2);
+  });
+
   it('has no authenticated client route for writing confirmed transcript text', async () => {
     const actualApp = createApp(storage.db, config);
     const signedIn = await actualApp.request(`${origin}/api/auth/sign-up/email`, {
@@ -323,6 +378,16 @@ describe.sequential('server-owned capture and usage', () => {
       .getSetCookie()
       .map((value) => value.split(';')[0])
       .join('; ');
+    const accepted = await actualApp.request(`${origin}/api/legal/acceptance`, {
+      method: 'POST',
+      headers: { origin, cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        termsVersion: CURRENT_TERMS_VERSION,
+        acceptedTerms: true,
+        recordingLawAcknowledged: true,
+      }),
+    });
+    expect(accepted.status, await accepted.clone().text()).toBe(200);
     const forged = await actualApp.request(
       `${origin}/api/capture/sessions/${crypto.randomUUID()}/transcript`,
       {

@@ -142,6 +142,9 @@ async function register(page: Page) {
     .getByLabel('Email', { exact: true })
     .fill(`capture-${crypto.randomUUID()}@example.test`);
   await page.getByLabel('Password', { exact: false }).fill('local-capture-Password-123');
+  const agreements = page.getByRole('group', { name: 'Agreements required to continue' });
+  await agreements.getByRole('checkbox').nth(0).check();
+  await agreements.getByRole('checkbox').nth(1).check();
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
 }
@@ -151,7 +154,7 @@ async function openPage(page: Page) {
   await expect(page.getByRole('region', { name: 'Live transcription', exact: true })).toBeVisible();
 }
 
-test('live capture updates the microphone indicator, shows confirmed text, pauses and releases tracks on navigation', async ({
+test('live capture updates the microphone indicator, shows confirmed text, and blocks unsafe page exit', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -161,8 +164,7 @@ test('live capture updates the microphone indicator, shows confirmed text, pause
   await openPage(page);
   const capture = page.getByRole('region', { name: 'Live transcription', exact: true });
   const start = capture.getByRole('button', { name: 'Start live capture', exact: true });
-  await expect(start).toBeDisabled();
-  await capture.getByRole('checkbox').check();
+  await expect(start).toBeEnabled();
   await start.click();
   await expect(capture.getByRole('status')).toHaveText('Listening');
   await expect(page.locator('.mic-status')).toHaveAttribute(
@@ -212,9 +214,50 @@ test('live capture updates the microphone indicator, shows confirmed text, pause
   await capture.getByRole('button', { name: 'Resume capture', exact: true }).click();
   await expect(capture.getByRole('status')).toHaveText('Listening');
   await page.getByRole('button', { name: 'Back to pages', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Finish live transcription before leaving');
+  await expect(capture.getByRole('status')).toHaveText('Listening');
+  await expect.poll(() => page.evaluate(() => window.__captureHarness.stopped)).toBe(1);
+  await capture.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__captureHarness.stopped)).toBe(2);
+  await page.getByRole('button', { name: 'Back to pages', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
   await expect(page.locator('.mic-status')).toHaveAttribute('aria-label', 'Your microphone is off');
+  expect(errors).toEqual([]);
+});
+
+test('a Terms update waits for live capture to reach a safe state', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await configure(page);
+  await register(page);
+  await openPage(page);
+  const capture = page.getByRole('region', { name: 'Live transcription', exact: true });
+  await capture.getByRole('button', { name: 'Start live capture', exact: true }).click();
+  await expect(capture.getByRole('status')).toHaveText('Listening');
+
+  await page.evaluate(() => {
+    window.dispatchEvent(
+      new CustomEvent('sideleaf:legal-acceptance-required', {
+        detail: {
+          termsVersion: '2026-09-10.1',
+          effectiveAt: '2026-09-10',
+          termsUrl: '/terms',
+          privacyUrl: '/privacy',
+          recordingLawAcknowledgement:
+            'I am responsible for determining and following applicable recording requirements.',
+        },
+      }),
+    );
+  });
+
+  await expect(page.getByRole('alert')).toContainText(
+    'The Terms of Service changed. Finish live transcription',
+  );
+  await expect(capture.getByRole('status')).toHaveText('Listening');
+  await capture.getByRole('button', { name: 'Pause', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.__captureHarness.stopped)).toBe(1);
+  await expect(page.getByRole('heading', { name: 'Before you continue' })).toBeVisible();
+  await expect(page.getByText('2026-09-10.1', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -226,7 +269,6 @@ test('capture cannot start while page edits are unsynced or the browser is offli
   await register(page);
   await openPage(page);
   const capture = page.getByRole('region', { name: 'Live transcription', exact: true });
-  await capture.getByRole('checkbox').check();
   const start = capture.getByRole('button', { name: 'Start live capture', exact: true });
   await expect(start).toBeEnabled();
   let saved!: () => void;

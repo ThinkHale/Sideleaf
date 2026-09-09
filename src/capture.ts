@@ -6,6 +6,7 @@ import type {
   CaptureStopReason,
   SavedTranscriptSegment,
 } from '../shared/capture';
+import { notifyIfLegalAcceptanceRequired } from './api';
 
 export type CaptureSnapshot = {
   state: CaptureState;
@@ -51,11 +52,13 @@ async function request<T>(path: string, body?: unknown, options: RequestInit = {
     ...options,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok)
+  if (!response.ok) {
+    notifyIfLegalAcceptanceRequired(response.status, data);
     throw new CaptureRequestError(
       response.status,
       typeof data.error === 'string' ? data.error : 'Capture request failed.',
     );
+  }
   return data as T;
 }
 export function captureSupported() {
@@ -176,17 +179,13 @@ export class LiveCaptureClient {
     this.publish({ error: '' });
   }
 
-  async start(consent: boolean, rollover = false) {
+  async start(rollover = false) {
     if (
       this.disposed ||
       this.ending ||
       ['connecting', 'listening', 'finalizing'].includes(this.snapshot.state)
     )
       return;
-    if (!consent) {
-      this.publish({ error: 'Confirm participant consent before starting.' });
-      return;
-    }
     if (this.unconfirmed.length || this.interim.size) {
       this.publish({ error: 'Check the unconfirmed transcript before starting again.' });
       return;
@@ -251,7 +250,6 @@ export class LiveCaptureClient {
             {
               pageId: this.options.pageId,
               sdp: offer.sdp,
-              consent: true,
             },
             { signal },
           );
@@ -347,7 +345,7 @@ export class LiveCaptureClient {
       if (data.reason === 'rollover' && this.snapshot.state === 'listening') {
         void (async () => {
           await this.stop('paused');
-          if (!this.disposed) await this.start(true, true);
+          if (!this.disposed) await this.start(true);
         })();
       } else {
         void this.interrupt(

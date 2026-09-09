@@ -83,42 +83,19 @@
   line-height: 1.65;
 }
 
-.live-capture .checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-height: 44px;
-  margin: 2px 0 0;
-  padding: 12px 14px;
+.live-capture .capture-legal-reminder {
+  margin: 0;
+  padding: 10px 12px;
   background: var(--paper);
   border: 1px solid #d4dccc;
   border-radius: var(--radius);
   color: #374b3c;
-  font-size: 13px;
-  font-weight: 450;
+  font-size: 12px;
   line-height: 1.6;
-  cursor: pointer;
 }
 
-.live-capture .checkbox:has(input:checked) {
-  border-color: #8fa488;
-  background: #eef4e8;
-}
-
-.live-capture .checkbox:focus-within {
-  outline: 2px solid var(--olive-dark);
-  outline-offset: 3px;
-}
-
-.live-capture .checkbox input[type='checkbox'] {
-  flex: 0 0 19px;
-  width: 19px;
-  height: 19px;
-  min-height: 19px;
-  margin: 1px 0 0;
-  padding: 0;
-  accent-color: var(--olive-dark);
-  cursor: pointer;
+.live-capture .capture-legal-reminder a {
+  font-weight: 600;
 }
 
 .live-capture .capture-controls {
@@ -263,11 +240,6 @@
     flex-basis: 100%;
   }
 
-  .live-capture .checkbox {
-    padding: 12px;
-    gap: 10px;
-  }
-
   .live-capture .capture-transcript .capture-heading {
     align-items: flex-start;
   }
@@ -279,7 +251,7 @@
 
 @media (forced-colors: active) {
   .live-capture,
-  .live-capture .checkbox,
+  .live-capture .capture-legal-reminder,
   .live-capture .notice,
   .live-capture .error,
   .live-capture .capture-interim,

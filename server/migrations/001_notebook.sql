@@ -1,4 +1,8 @@
 CREATE TABLE IF NOT EXISTS auth_user (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL UNIQUE, email_verified boolean NOT NULL DEFAULT false, image text, created_at timestamp NOT NULL, updated_at timestamp NOT NULL);
+CREATE TABLE IF NOT EXISTS legal_acceptances (user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, terms_version text NOT NULL, accepted_at timestamptz NOT NULL DEFAULT now(), recording_law_acknowledged_at timestamptz NOT NULL DEFAULT now(), legal_bundle_sha256 text NOT NULL, PRIMARY KEY(user_id, terms_version));
+ALTER TABLE legal_acceptances ADD COLUMN IF NOT EXISTS legal_bundle_sha256 text NOT NULL DEFAULT 'ea207ddf60331f6b136fe4fdf3749484827d97315dc8e8a726c5febecdc5af64';
+ALTER TABLE legal_acceptances ALTER COLUMN legal_bundle_sha256 DROP DEFAULT;
+CREATE INDEX IF NOT EXISTS legal_acceptances_owner ON legal_acceptances(user_id);
 CREATE TABLE IF NOT EXISTS auth_rate_limit (id text PRIMARY KEY, key text NOT NULL UNIQUE, count integer NOT NULL, last_request bigint NOT NULL);
 CREATE TABLE IF NOT EXISTS billing_customers (user_id text NOT NULL REFERENCES auth_user(id) ON DELETE CASCADE, livemode boolean NOT NULL, customer_id text, checkout_attempt text NOT NULL, checkout_session_id text, updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(user_id, livemode));
 CREATE UNIQUE INDEX IF NOT EXISTS billing_customer_stripe_id ON billing_customers(customer_id);

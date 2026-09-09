@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Mic, MicOff, Pause, Play, Square } from 'lucide-react';
 import { captureSupported, initialCaptureSnapshot, LiveCaptureClient } from '../capture';
 import { download } from '../api';
+import { captureBlocksPageExit, protectBrowserPageExit } from '../pageExit';
+import { RECORDING_LAW_REMINDER, TERMS_PATH } from '../../shared/legal';
 import '../capture.css';
 
 const clock = (seconds: number) =>
@@ -21,7 +23,6 @@ export function LiveCapture({
   onMicrophoneChange?: (live: boolean) => void;
 }) {
   const [snapshot, setSnapshot] = useState(initialCaptureSnapshot);
-  const [consent, setConsent] = useState(false);
   const client = useRef<LiveCaptureClient | null>(null);
   const onActive = useRef(onActiveChange);
   onActive.current = onActiveChange;
@@ -29,34 +30,29 @@ export function LiveCapture({
   onMicrophone.current = onMicrophoneChange;
   const supported = captureSupported();
   const busy = ['connecting', 'listening', 'finalizing'].includes(snapshot.state);
-  const active = busy || snapshot.unconfirmedText.length > 0 || snapshot.interim.length > 0;
 
   useEffect(() => {
-    let current = new LiveCaptureClient({ pageId, onChange: setSnapshot });
+    const updateSnapshot = (next: typeof snapshot) => {
+      setSnapshot(next);
+      onActive.current?.(captureBlocksPageExit(next));
+      onMicrophone.current?.(next.state === 'listening');
+    };
+    const resetSnapshot = () => updateSnapshot(initialCaptureSnapshot());
+    let current = new LiveCaptureClient({ pageId, onChange: updateSnapshot });
     client.current = current;
-    setSnapshot(initialCaptureSnapshot());
-    setConsent(false);
+    resetSnapshot();
     void current.refreshTranscript();
     const pagehide = () => current.dispose();
     const pageshow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
-      current = new LiveCaptureClient({ pageId, onChange: setSnapshot });
+      current = new LiveCaptureClient({ pageId, onChange: updateSnapshot });
       client.current = current;
-      setSnapshot(initialCaptureSnapshot());
-      setConsent(false);
+      resetSnapshot();
       void current.refreshTranscript();
     };
     const offline = () => void current.stop('interrupted');
-    const beforeunload = (event: BeforeUnloadEvent) => {
-      if (
-        ['connecting', 'listening', 'finalizing'].includes(current.current.state) ||
-        current.current.unconfirmedText.length ||
-        current.current.interim.length
-      ) {
-        event.preventDefault();
-        event.returnValue = '';
-      }
-    };
+    const beforeunload = (event: BeforeUnloadEvent) =>
+      protectBrowserPageExit(event, captureBlocksPageExit(current.current));
     window.addEventListener('pagehide', pagehide);
     window.addEventListener('pageshow', pageshow);
     window.addEventListener('offline', offline);
@@ -71,13 +67,6 @@ export function LiveCapture({
       window.removeEventListener('beforeunload', beforeunload);
     };
   }, [pageId]);
-
-  useEffect(() => {
-    onActive.current?.(active);
-  }, [active]);
-  useEffect(() => {
-    onMicrophone.current?.(snapshot.state === 'listening');
-  }, [snapshot.state]);
   const label = {
     ready: 'Ready to listen',
     connecting: 'Connecting microphone',
@@ -112,14 +101,13 @@ export function LiveCapture({
             in abuse-monitoring logs, with legal or safety exceptions. Connected time, including
             brief setup, counts toward your allowance.
           </p>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(event) => setConsent(event.target.checked)}
-            />
-            I have informed participants and obtained the consent required for this meeting.
-          </label>
+          <p className="capture-legal-reminder">
+            {RECORDING_LAW_REMINDER}{' '}
+            <a href={TERMS_PATH} target="_blank" rel="noreferrer">
+              Review the Terms of Service
+            </a>
+            .
+          </p>
         </div>
       )}
       {!ready && <p className="notice">{reason}</p>}
@@ -135,11 +123,10 @@ export function LiveCapture({
             disabled={
               !ready ||
               !supported ||
-              !consent ||
               snapshot.unconfirmedText.length > 0 ||
               snapshot.interim.length > 0
             }
-            onClick={() => void client.current?.start(consent)}
+            onClick={() => void client.current?.start()}
           >
             <Play size={16} />
             {['paused', 'interrupted'].includes(snapshot.state)

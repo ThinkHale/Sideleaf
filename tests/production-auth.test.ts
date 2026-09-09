@@ -4,6 +4,7 @@ import { createApp } from '../server/app';
 import { openDatabase } from '../server/database';
 import { rateLimit, user } from '../server/schema';
 import type { Config } from '../server/config';
+import { CURRENT_TERMS_VERSION } from '../shared/legal';
 
 const origin = 'https://sideleaf-beta.example';
 const password = 'synthetic-beta-password-47';
@@ -101,6 +102,20 @@ describe.sequential('production email/password beta', () => {
       .getSetCookie()
       .map((value) => value.split(';')[0])
       .join('; ');
+    expect(
+      (await request(createApp(storage.db, config), '/pages', undefined, { cookie })).status,
+    ).toBe(428);
+    const acceptance = await request(
+      createApp(storage.db, config),
+      '/legal/acceptance',
+      {
+        termsVersion: CURRENT_TERMS_VERSION,
+        acceptedTerms: true,
+        recordingLawAcknowledged: true,
+      },
+      { cookie },
+    );
+    expect(acceptance.status, await acceptance.clone().text()).toBe(200);
     expect(
       (await request(createApp(storage.db, config), '/pages', undefined, { cookie })).status,
     ).toBe(200);

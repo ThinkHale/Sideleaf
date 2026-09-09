@@ -110,12 +110,17 @@ describe('browser live capture lifecycle', () => {
     };
     expect(orderTranscriptSegments([second, first])).toEqual([first, second]);
   });
-  it('requires consent before requesting microphone permission', async () => {
+  it('waits for an explicit start call before requesting microphone permission', async () => {
     const { client, dependencies, request } = setup();
-    await client.start(false);
     expect(dependencies.getUserMedia).not.toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
-    expect(client.current.error).toContain('consent');
+    await client.start();
+    expect(dependencies.getUserMedia).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledWith(
+      '/sessions',
+      { pageId: 'page-id', sdp: 'fake-sdp-offer' },
+      expect.any(Object),
+    );
   });
 
   it('releases a microphone if permission resolves after cancellation', async () => {
@@ -127,7 +132,7 @@ describe('browser live capture lifecycle', () => {
           resolvePermission = resolve;
         }),
     );
-    const starting = client.start(true);
+    const starting = client.start();
     await client.stop();
     resolvePermission(stream as unknown as MediaStream);
     await starting;
@@ -136,12 +141,12 @@ describe('browser live capture lifecycle', () => {
     expect(client.current.state).toBe('complete');
   });
 
-  it('sends only SDP during setup and releases the microphone immediately on pause', async () => {
+  it('sends no consent assertion during setup and releases the microphone on pause', async () => {
     const { client, track, peer, request, serverEvent } = setup();
-    await client.start(true);
+    await client.start();
     expect(request).toHaveBeenCalledWith(
       '/sessions',
-      { pageId: 'page-id', sdp: 'fake-sdp-offer', consent: true },
+      { pageId: 'page-id', sdp: 'fake-sdp-offer' },
       expect.any(Object),
     );
     expect(track.enabled).toBe(false);
@@ -162,7 +167,7 @@ describe('browser live capture lifecycle', () => {
 
   it('keeps browser-reported text transient and accepts saved text only from the server observer', async () => {
     const { client, event, request, serverEvent } = setup();
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     event({ type: 'input_audio_buffer.committed', item_id: 'item_2', previous_item_id: 'item_1' });
     event({
@@ -202,7 +207,7 @@ describe('browser live capture lifecycle', () => {
 
   it('retains unconfirmed text in memory and stops the microphone if the observer fails', async () => {
     const { client, event, observer, track, serverEvent } = setup();
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     event({
       type: 'conversation.item.input_audio_transcription.completed',
@@ -221,7 +226,7 @@ describe('browser live capture lifecycle', () => {
 
   it('does not expose provider error payloads and releases microphone access', async () => {
     const { client, event, track, serverEvent } = setup();
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     event({ type: 'error', error: { message: 'Secret provider request detail' } });
     expect(track.stop).toHaveBeenCalledOnce();
@@ -232,7 +237,7 @@ describe('browser live capture lifecycle', () => {
 
   it('commits continuous speech periodically without sending audio through HTTP', async () => {
     const { client, event, channel, request, serverEvent } = setup();
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     event({ type: 'input_audio_buffer.speech_started' });
     await vi.advanceTimersByTimeAsync(10000);
@@ -246,7 +251,7 @@ describe('browser live capture lifecycle', () => {
 
   it('reconnects after a server rollover and waits for the new observer before unmuting', async () => {
     const { client, serverEvent, dependencies, track } = setup();
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     serverEvent('state', { reason: 'rollover' });
     expect(track.stop).toHaveBeenCalledOnce();
@@ -267,7 +272,7 @@ describe('browser live capture lifecycle', () => {
         throw new CaptureRequestError(409, 'Session is still closing.');
       return defaultRequest(path);
     });
-    await client.start(true);
+    await client.start();
     serverEvent('ready');
     serverEvent('state', { reason: 'rollover' });
     await vi.advanceTimersByTimeAsync(1800);
@@ -281,7 +286,7 @@ describe('browser live capture lifecycle', () => {
   it('does not retry an active-session conflict on a user-initiated start', async () => {
     const { client, request, track } = setup();
     request.mockRejectedValueOnce(new CaptureRequestError(409, 'Only one meeting can be active.'));
-    await client.start(true);
+    await client.start();
     expect(request).toHaveBeenCalledTimes(1);
     expect(track.stop).toHaveBeenCalledOnce();
     expect(client.current.state).toBe('interrupted');
@@ -290,7 +295,7 @@ describe('browser live capture lifecycle', () => {
 
   it('terminates device capture immediately on disposal and sends a keepalive stop', async () => {
     const { client, track, peer, request } = setup();
-    await client.start(true);
+    await client.start();
     client.dispose();
     expect(track.stop).toHaveBeenCalledOnce();
     expect(peer.close).toHaveBeenCalledOnce();

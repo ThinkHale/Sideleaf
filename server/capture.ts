@@ -13,12 +13,12 @@ import {
   meetingTranscripts,
 } from './capture-schema.js';
 import { openAICapture, type CaptureProvider, type CaptureObserver } from './openai-capture.js';
+import { RECORDING_LAW_REMINDER } from '../shared/legal.js';
 
 type AuthContext = Context<{ Variables: { userId: string; signedInAt: Date } }>;
 const activeStates = ['starting', 'live', 'stopping'];
 const endingStates = ['paused', 'stopped', 'interrupted', 'rollover', 'limit'];
-export const CAPTURE_DISCLOSURE =
-  'Audio streams to OpenAI for live transcription. Sideleaf saves the transcript, not audio files. OpenAI may retain API content in abuse-monitoring logs for up to 30 days by default, with legal or safety exceptions. API data is not used for training unless the account opts in. Inform participants and obtain any required consent.';
+export const CAPTURE_DISCLOSURE = `Audio streams to OpenAI for live transcription. Sideleaf saves the transcript, not audio files. OpenAI may retain API content in abuse-monitoring logs for up to 30 days by default, with legal or safety exceptions. API data is not used for training unless the account opts in. ${RECORDING_LAW_REMINDER}`;
 export function captureReady() {
   return Boolean(
     process.env.OPENAI_API_KEY &&
@@ -187,6 +187,64 @@ export function createCapture(
     if (results.some((r) => r.status === 'rejected'))
       throw new CaptureError(503, 'A previous meeting is still closing. Please retry shortly.');
   }
+  async function stopAll(uid: string) {
+    try {
+      const requestedAt = clock();
+      const sessions = await db.transaction(async (tx) => {
+        const [account] = await tx
+          .select({ id: user.id })
+          .from(user)
+          .where(eq(user.id, uid))
+          .for('update');
+        if (!account) throw new CaptureError(404, 'The account no longer exists.');
+        const ownedSessions = await tx
+          .select()
+          .from(captureSessions)
+          .where(and(eq(captureSessions.userId, uid), inArray(captureSessions.state, activeStates)))
+          .for('update');
+        for (const session of ownedSessions) {
+          await tx
+            .update(captureSessions)
+            .set({
+              state: 'stopping',
+              stopReason: session.stopReason || 'stopped',
+              endedAt: session.endedAt || requestedAt,
+            })
+            .where(
+              and(
+                eq(captureSessions.id, session.id),
+                eq(captureSessions.userId, uid),
+                inArray(captureSessions.state, activeStates),
+              ),
+            );
+        }
+        return ownedSessions.map((session) => ({
+          ...session,
+          wasStopping: session.state === 'stopping',
+          state: 'stopping',
+          stopReason: session.stopReason || 'stopped',
+          endedAt: session.endedAt || requestedAt,
+        }));
+      });
+      if (sessions.some((session) => !session.wasStopping))
+        await new Promise((resolve) => setTimeout(resolve, 1600));
+      const results = await Promise.allSettled(
+        sessions.map((session) => finish(session, session.stopReason || 'stopped', requestedAt)),
+      );
+      if (results.some((result) => result.status === 'rejected'))
+        throw new CaptureError(
+          503,
+          'An active transcription is still closing. No new audio can start; please retry shortly.',
+        );
+      return { stopped: sessions.length };
+    } catch (error) {
+      if (error instanceof CaptureError) throw error;
+      throw new CaptureError(
+        503,
+        'Active transcription cleanup could not be completed. Please retry shortly.',
+      );
+    }
+  }
   const handler = (fn: (c: AuthContext) => Promise<Response>) => async (c: AuthContext) => {
     try {
       return await fn(c);
@@ -250,7 +308,9 @@ export function createCapture(
         .object({
           pageId: z.string().uuid(),
           sdp: z.string().min(20).max(64000),
-          consent: z.literal(true),
+          // Temporarily tolerate the legacy field from cached clients. Legal
+          // acceptance is enforced before this handler is reached.
+          consent: z.literal(true).optional(),
         })
         .strict()
         .parse(await c.req.json());
@@ -411,6 +471,13 @@ export function createCapture(
         await finish({ ...session, state: 'stopping', endedAt: at }, reason, at);
       }
       return c.json({ stopped: true, usage: await usage(c.get('userId')) });
+    }),
+    stopAll,
+    stopAllRoute: handler(async (c) => {
+      z.object({})
+        .strict()
+        .parse(await c.req.json());
+      return c.json(await stopAll(c.get('userId')));
     }),
     events: handler(async (c) => {
       const uid = c.get('userId'),

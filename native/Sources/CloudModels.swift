@@ -79,6 +79,34 @@ struct CloudAuthEnvelope: Codable, Sendable {
     let user: CloudIdentity
 }
 
+struct CloudLegalMetadata: Codable, Equatable, Sendable {
+    let termsVersion: String
+    let effectiveAt: String
+    let termsUrl: String
+    let privacyUrl: String
+    let recordingLawAcknowledgement: String
+
+    var termsURL: URL? { URL(string: termsUrl) }
+    var privacyURL: URL? { URL(string: privacyUrl) }
+}
+
+struct CloudLegalStatus: Codable, Equatable, Sendable {
+    let accepted: Bool
+    let acceptedAt: String?
+    let recordingLawAcknowledgedAt: String?
+    let legal: CloudLegalMetadata
+
+    var confirmsCurrentTerms: Bool {
+        accepted && acceptedAt != nil && recordingLawAcknowledgedAt != nil
+    }
+}
+
+struct CloudLegalAcceptance: Codable, Equatable, Sendable {
+    let termsVersion: String
+    let acceptedTerms: Bool
+    let recordingLawAcknowledged: Bool
+}
+
 struct CloudNotebook: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
@@ -130,6 +158,7 @@ struct CloudConfiguration: Codable, Equatable, Sendable {
     let passwordAuth: Bool
     let googleAuth: Bool
     let capture: Capture
+    let legal: CloudLegalMetadata
 }
 
 enum CloudDocumentError: Error, LocalizedError, Equatable {

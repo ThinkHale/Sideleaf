@@ -11,7 +11,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { NotebookDocument } from '../shared/domain.js';
 export { billingCustomers, billingSubscriptions, billingEvents } from './billing-schema.js';
-export { captureSessions, captureUsage, captureWatchdog, meetingTranscripts } from './capture-schema.js';
+export {
+  captureSessions,
+  captureUsage,
+  captureWatchdog,
+  meetingTranscripts,
+} from './capture-schema.js';
 
 export const rateLimit = pgTable('auth_rate_limit', {
   id: text().primaryKey(),
@@ -29,6 +34,26 @@ export const user = pgTable('auth_user', {
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
 });
+export const legalAcceptances = pgTable(
+  'legal_acceptances',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    termsVersion: text('terms_version').notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull().defaultNow(),
+    recordingLawAcknowledgedAt: timestamp('recording_law_acknowledged_at', {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    legalBundleSha256: text('legal_bundle_sha256').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.termsVersion] }),
+    index('legal_acceptances_owner').on(t.userId),
+  ],
+);
 export const session = pgTable('auth_session', {
   id: text().primaryKey(),
   expiresAt: timestamp('expires_at').notNull(),

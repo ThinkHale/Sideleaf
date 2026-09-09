@@ -1,10 +1,10 @@
 # Live capture implementation and setup
 
-The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Native build `4` adds a separate on-device transcription path; physical microphone and native runtime validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
+The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Native build `6` has a separate on-device transcription path and audio-engine lifecycle hardening; physical microphone and native runtime validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
 
 ## Native on-device transcription boundary
 
-The native iPhone/iPad path uses Apple's iOS/iPadOS 26 speech analysis APIs and does not connect microphone audio to OpenAI, Vercel or Supabase. Before starting, the user must explicitly confirm participant consent and grant microphone and speech access. Audio buffers are bounded in memory, are not written to an audio file and are not queued or uploaded. Stopping, an interruption, a route loss or leaving the capture UI releases the audio engine.
+The native iPhone/iPad path uses Apple's iOS/iPadOS 26 speech analysis APIs and does not connect microphone audio to OpenAI, Vercel or Supabase. The account must have accepted the current Terms and recording-law responsibility acknowledgement. Each capture view repeats a passive responsibility reminder, and the user must deliberately select Start and grant microphone and speech access; there is no repeated attestation toggle. Audio buffers are bounded in memory, are not written to an audio file and are not queued or uploaded. Stopping, an interruption, a route loss or leaving the capture UI releases the audio engine.
 
 Final on-device text can be saved with the page and synchronized through the ordinary revision protocol as personal user content. It must not be represented as a server-observed transcript segment, and it does not consume browser cloud-capture allowance. Device/language/model availability is surfaced without a remote fallback. Physical iPhone/iPad microphone, permission, interruption, background and finalization behavior has not yet been verified.
 
@@ -16,8 +16,8 @@ sequenceDiagram
   participant API as Sideleaf API on Vercel
   participant OpenAI
   participant DB as Supabase Postgres
-  Browser->>API: Authenticated start, page ID, consent, SDP offer
-  API->>DB: Check ownership, allowance, supervisor and one-session lease
+  Browser->>API: Authenticated start, page ID and SDP offer
+  API->>DB: Check current Terms, ownership, allowance, supervisor and one-session lease
   API->>OpenAI: Create transcription call with server key
   API->>DB: Save call ID and connection metering start
   API->>Browser: SDP answer and owned session ID
@@ -32,7 +32,7 @@ sequenceDiagram
 
 `server/openai-capture.ts` creates a transcription-only call at `/v1/realtime/calls` using `gpt-4o-mini-transcribe` and server voice activity detection. `server/capture.ts` attaches to the call over a server-side WebSocket. The browser uses WebRTC for audio and a data channel for interim display. No shared OpenAI key is sent to the browser, and the native on-device path does not call these cloud-capture routes. [OpenAI Realtime transcription](https://developers.openai.com/api/docs/guides/realtime-transcription), [server-side controls](https://developers.openai.com/api/docs/guides/realtime-server-controls).
 
-Only provider-final transcript events observed by the server become saved transcript records. Client text and client plan flags are not accepted as trusted provenance or paid entitlement. The server validates page/session ownership on each route. Ordinary page writes still reject forged transcript and AI blocks. Saved transcript text is separate from the manual page document.
+Only provider-final transcript events observed by the server become saved transcript records. Client text and client plan flags are not accepted as trusted provenance or paid entitlement. The server validates the current account-level legal acceptance and page/session ownership on capture routes. A Terms update blocks new starts, observer attachment and heartbeats; Stop remains available so an active microphone can always be released. Ordinary page writes still reject forged transcript and AI blocks. Saved transcript text is separate from the manual page document.
 
 ## Sessions, usage and interruptions
 
@@ -44,7 +44,7 @@ A starting reservation allows 70 seconds for provider setup, while the provider 
 
 `vercel.json` requests a 300-second function duration. The observer intentionally rolls the connection at about 225 seconds, leaving time for finalization and hangup. The browser automatically reconnects when it can safely do so. Audio during reconnection is not buffered for later upload; the UI must disclose this gap. One hosted real-provider rollover passed with new transcript text saved after reconnection. This is a beta rollover strategy, and repeated live rollovers need a real-device test before making long-meeting reliability claims.
 
-Pause and Stop release browser microphone tracks immediately, tell the server to stop metering, commit the last speech turn, drain final text and close the provider call. A lost browser or killed server function relies on lease expiry and maintenance cleanup. This provides a retry path, not a guarantee that an unavailable third-party provider can be terminated instantly.
+Pause and Stop release browser microphone tracks immediately, tell the server to stop metering, commit the last speech turn, drain final text and close the provider call. While capture, finalization, interim text or unconfirmed text remains active, Sideleaf blocks in-app page changes and account/billing exits and requests browser confirmation before reload or tab closure. A Terms update received during that interval is presented after the text reaches a safe state. A lost browser or killed server function relies on lease expiry and maintenance cleanup. This provides a retry path, not a guarantee that an unavailable third-party provider can be terminated instantly.
 
 The observer caps WebSocket messages at 256 KiB, queued selected events at 64, per-segment text at 30,000 characters and predecessor tracking at 1,024 turns per connection. Processing errors stop the stream. Sideleaf does not use MediaRecorder, collect audio files, persist audio buffers, or queue audio offline. Browser-confirmed text that has not yet been confirmed by the server is labeled unconfirmed and can be copied/exported without pretending it is saved transcript.
 
@@ -52,10 +52,11 @@ The observer caps WebSocket messages at 256 KiB, queued selected events at 64, p
 
 | Route                                      | Purpose                                                     |
 | ------------------------------------------ | ----------------------------------------------------------- |
-| `POST /api/capture/sessions`               | Check consent/ownership/allowance and create a connection   |
+| `POST /api/capture/sessions`               | Check legal acceptance/ownership/allowance and connect      |
 | `GET /api/capture/sessions/:id/events`     | Attach the single server observer and stream confirmed text |
 | `POST /api/capture/sessions/:id/heartbeat` | Read server lease state                                     |
 | `POST /api/capture/sessions/:id/stop`      | Pause, stop or interrupt an owned connection                |
+| `POST /api/capture/sessions/stop-all`      | End all active connections owned by the signed-in account   |
 | `GET /api/capture/pages/:pageId`           | Read saved transcript segments and session metadata         |
 | `GET /api/capture/usage`                   | Read allowance and reset timestamp                          |
 | `GET /api/capture/maintenance`             | Secret-authenticated watchdog cleanup                       |
@@ -64,7 +65,7 @@ The old `/api/capture/start` placeholder is not the current client contract.
 
 `capture_sessions` stores call/session ownership, state and timing. `meeting_transcripts` stores finalized text with provider item linkage; `(session_id, item_id)` is unique. `capture_usage` stores aggregate monthly milliseconds. `capture_watchdog` stores supervisor freshness. These tables remain in the private `sideleaf` schema with backend-only access and RLS. There are no audio columns or Storage buckets in this flow.
 
-The live panel exports transcript text separately. Full account export includes saved transcripts. Normal page-document exports preserve their existing manual-note behavior. An active session must be stopped before its page or account can be deleted. Page deletion removes its transcript/session records; account deletion also removes its aggregate usage after capture and billing safeguards pass.
+The live panel exports transcript text separately. Full account export includes saved transcripts. Normal page-document exports preserve their existing manual-note behavior. An active session must be stopped before its page can be deleted. Account deletion automatically ends all active capture sessions owned by that account before applying its remaining subscription and billing safeguards. Page deletion removes its transcript/session records; account deletion also removes its aggregate usage after those safeguards pass.
 
 ## Secrets and activation
 

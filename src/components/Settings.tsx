@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { api, download, type ProductConfig } from '../api';
 import { Recovery } from './Recovery';
 import { BillingPlan } from './BillingPlan';
+import { LegalLinks } from './LegalLinks';
 export function Settings({
   config,
   email,
@@ -11,6 +12,8 @@ export function Settings({
   onClose,
   onLogout,
   onDeleted,
+  beforePageExit = () => undefined,
+  termsRequired = false,
 }: {
   config: ProductConfig;
   email: string;
@@ -18,23 +21,36 @@ export function Settings({
   onClose: () => void;
   onLogout: () => Promise<void>;
   onDeleted: () => Promise<void>;
+  beforePageExit?: () => void;
+  termsRequired?: boolean;
 }) {
   const [confirmation, setConfirmation] = useState(''),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [cleanup, setCleanup] = useState<'capture' | 'checkout' | null>(null),
+    [cleanupMessage, setCleanupMessage] = useState(''),
+    [working, setWorking] = useState(false);
   async function act(fn: () => Promise<unknown>) {
+    if (working || cleanup !== null) return;
+    setWorking(true);
     try {
       setError('');
       await fn();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed');
+    } finally {
+      setWorking(false);
     }
   }
   return (
-    <Modal title="Your notebook, your data" onClose={onClose}>
+    <Modal
+      title="Your notebook, your data"
+      onClose={onClose}
+      dismissDisabled={working || cleanup !== null}
+    >
       <p className="muted">{email}</p>
       <section className="settings-section">
         <h3>Account</h3>
-        <button onClick={() => act(onLogout)}>
+        <button disabled={working || cleanup !== null} onClick={() => act(onLogout)}>
           <LogOut size={16} />
           Sign out and clear this device’s cache
         </button>
@@ -43,9 +59,87 @@ export function Settings({
           cache.
         </small>
       </section>
-      <BillingPlan config={config} />
+      <BillingPlan
+        config={config}
+        termsRequired={termsRequired}
+        beforePageExit={beforePageExit}
+        disabled={working || cleanup !== null}
+      />
+      {termsRequired && (
+        <section className="settings-section">
+          <h3>Finish account activity</h3>
+          <p>
+            These controls close Sideleaf activity that may have started on another device. They do
+            not cancel an active subscription; use Manage subscription above for that.
+          </p>
+          <div className="settings-actions">
+            <button
+              type="button"
+              disabled={working || cleanup !== null}
+              onClick={() => {
+                setCleanup('capture');
+                setError('');
+                setCleanupMessage('');
+                void api<{ stopped: number }>('/capture/sessions/stop-all', {
+                  method: 'POST',
+                  body: JSON.stringify({}),
+                })
+                  .then(({ stopped }) =>
+                    setCleanupMessage(
+                      stopped
+                        ? 'Active transcription was ended safely.'
+                        : 'No active transcription was found.',
+                    ),
+                  )
+                  .catch((cause) =>
+                    setError(
+                      cause instanceof Error
+                        ? cause.message
+                        : 'Active transcription could not be ended. Try again shortly.',
+                    ),
+                  )
+                  .finally(() => setCleanup(null));
+              }}
+            >
+              {cleanup === 'capture' ? 'Ending transcription…' : 'End active transcription'}
+            </button>
+            <button
+              type="button"
+              disabled={working || cleanup !== null}
+              onClick={() => {
+                setCleanup('checkout');
+                setError('');
+                setCleanupMessage('');
+                void api<{ expired: number }>('/billing/checkout/expire', {
+                  method: 'POST',
+                  body: JSON.stringify({}),
+                })
+                  .then(({ expired }) =>
+                    setCleanupMessage(
+                      expired
+                        ? 'The unfinished Sideleaf checkout was canceled.'
+                        : 'No unfinished Sideleaf checkout was found.',
+                    ),
+                  )
+                  .catch((cause) =>
+                    setError(
+                      cause instanceof Error
+                        ? cause.message
+                        : 'The unfinished checkout could not be canceled. Try again shortly.',
+                    ),
+                  )
+                  .finally(() => setCleanup(null));
+              }}
+            >
+              {cleanup === 'checkout' ? 'Canceling checkout…' : 'Cancel unfinished checkout'}
+            </button>
+          </div>
+          {cleanupMessage && <p role="status">{cleanupMessage}</p>}
+        </section>
+      )}
       <section className="settings-section">
         <h3>Privacy</h3>
+        <LegalLinks legal={config.legal} className="settings-legal-links" />
         <p>
           Typed notes, preparation, semantic marks, editable ink, and live transcription text are
           saved. When you start live transcription, your microphone audio streams to OpenAI for
@@ -68,6 +162,7 @@ export function Settings({
           able to read them. Use a private device and sign out when finished.
         </p>
         <button
+          disabled={working || cleanup !== null}
           onClick={() =>
             act(async () =>
               download(
@@ -95,19 +190,24 @@ export function Settings({
         </p>
         <label>
           Type DELETE to confirm
-          <input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+          <input
+            value={confirmation}
+            disabled={working || cleanup !== null}
+            onChange={(e) => setConfirmation(e.target.value)}
+          />
         </label>
         <button
           className="danger"
-          disabled={confirmation !== 'DELETE'}
+          disabled={confirmation !== 'DELETE' || working || cleanup !== null}
           onClick={() =>
             act(async () => {
+              beforePageExit();
               await api('/account', { method: 'DELETE', body: JSON.stringify({ confirmation }) });
               await onDeleted();
             })
           }
         >
-          Delete my account
+          {working ? 'Finishing account action…' : 'Delete my account'}
         </button>
       </section>
       {error && (

@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { templates, type Page, type Preparation as Prep } from '../../shared/domain';
 import type { ProductConfig } from '../api';
 import { captureSupported } from '../capture';
+import { RECORDING_LAW_REMINDER, TERMS_PATH } from '../../shared/legal';
 export function Preparation({
   page,
   config,
@@ -17,7 +18,6 @@ export function Preparation({
 }) {
   const [prep, setPrep] = useState(page.document.preparation),
     [title, setTitle] = useState(page.title),
-    [consent, setConsent] = useState(false),
     [ready, setReady] = useState(false);
   const field = (key: keyof Prep, label: string, placeholder = '', rows = 2) => (
     <label>
@@ -99,15 +99,14 @@ export function Preparation({
               This listens to your device microphone. It does not capture both sides of arbitrary
               calls or meeting apps.
             </p>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
-              />
-              I will inform participants and obtain the consent required for this meeting.
-            </label>
-            <button type="button" disabled={!consent} onClick={() => setReady(true)}>
+            <p className="legal-reminder">
+              {RECORDING_LAW_REMINDER}{' '}
+              <a href={TERMS_PATH} target="_blank" rel="noreferrer">
+                Review Terms
+              </a>
+              .
+            </p>
+            <button type="button" onClick={() => setReady(true)}>
               Check capture readiness
             </button>
             {ready && (
@@ -123,8 +122,8 @@ export function Preparation({
               </p>
             )}
             <small>
-              Saving preparation does not start the microphone. Confirm participant consent when
-              starting live capture.
+              Saving preparation does not start the microphone. Live capture begins only after you
+              explicitly select Start.
             </small>
           </div>
         </div>

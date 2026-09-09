@@ -19,7 +19,7 @@ flowchart LR
   API -. planned artifacts .-> Files[Private Supabase Storage]
 ```
 
-The browser OpenAI path has passed the hosted synthetic-microphone test described below. Stripe still needs a real sandbox test. The native app is distributed through Apple's tooling and only needs the public API URL and its user's session credentials. Native sign-in and revision-based synchronization are implemented in build `4`; hosted deployment verification of the accompanying API changes and physical-device runtime testing remain pending. PencilKit ink remains local.
+The browser OpenAI path has passed the hosted synthetic-microphone test described below. Stripe still needs a real sandbox test. The native app is distributed through Apple's tooling and only needs the public API URL and its user's session credentials. Native sign-in, versioned legal acceptance and revision-based synchronization are implemented in build `6`; hosted deployment verification of the accompanying API changes and physical-device runtime testing remain pending. PencilKit ink remains local.
 
 ## Components and execution
 
@@ -28,7 +28,7 @@ The browser OpenAI path has passed the hosted synthetic-microphone test describe
 | GitHub                   | Source repository and Vercel project linkage                                        |
 | Vercel static output     | Vite build under `dist/web`                                                         |
 | Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                        |
-| Supabase Postgres        | 15 private application tables for auth, notes, capture, usage and billing           |
+| Supabase Postgres        | 16 private tables for auth, notes, capture, usage, billing and legal acceptance     |
 | Better Auth              | Password hashing, sessions and shared database-backed authentication limits         |
 | Supabase pg_cron/pg_net  | 30-second capture cleanup calls using a Vault-held bearer secret                    |
 | OpenAI                   | `gpt-4o-mini-transcribe` WebRTC, observer and saved text verified September 7, 2026 |
@@ -81,7 +81,7 @@ Supabase API keys and PostgreSQL passwords serve different interfaces. Current c
 
 Hosted tables live in the private `sideleaf` schema, excluded from the Data API. `PUBLIC`, `anon` and `authenticated` have no schema/table access. The runtime login has schema usage and table CRUD, no schema ownership/DDL, and no RLS bypass. Its role-level search path resolves Drizzle tables to `sideleaf`. RLS allows the backend role; Hono and Better Auth enforce per-account ownership.
 
-All five reviewed files under [supabase/migrations](../supabase/migrations) are applied and migration history is aligned. The original two migrations established notebook/auth storage and restricted the provider RLS helper. Three newer migrations add seven capture/billing tables, install watchdog extensions, and place the newly installed pg_net extension under `extensions` with restricted net access. The advisor reports only the existing leaked-password warning for unused Supabase Auth. This does not establish a complete security audit.
+All eight reviewed files under [supabase/migrations](../supabase/migrations) are applied and migration history is aligned. The original two migrations established notebook/auth storage and restricted the provider RLS helper. Three capture migrations add seven capture/billing tables, install watchdog extensions, and place pg_net under `extensions` with restricted net access. Three legal migrations add immutable versioned acceptance rows, bind each acceptance to a SHA-256 fingerprint of the displayed legal bundle, and restrict RLS policies to SELECT/INSERT for the backend role. The advisor reports only the existing leaked-password warning for unused Supabase Auth. This does not establish a complete security or legal audit.
 
 The runtime connection has verified its role, schema and auth table and demonstrated denial of schema creation and anonymous schema use. Production startup runs no migrations. Local development uses PGlite with `server/migrations/001_notebook.sql`; local accounts and drafts are not automatically imported into the hosted database.
 
@@ -91,17 +91,17 @@ The runtime connection has verified its role, schema and auth table and demonstr
 
 Keep real development secrets outside the OneDrive checkout or inject them into the process environment. Local scripts still load repository `.env` when present; an external-secret-file loader is not implemented. Git, Docker and `.vercelignore` exclude local databases, real environment files and generated service metadata. The blank `.env.example` remains trackable. Vercel upload exclusions are separate from Git ignores; the earlier clean deployment manifest was checked.
 
-Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). XcodeGen regenerated build `4`, which targets iPhone and iPad on iOS/iPadOS 26 or later. Build-for-testing compiled the app and XCTest products for both simulator form factors, and an unsigned generic iOS Release archive passed. Complete signing, App Store upload and physical iPhone/iPad testing. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
+Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). Build `6` targets iPhone and iPad on iOS/iPadOS 26 or later. Complete signing, App Store upload and physical iPhone/iPad testing. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
 
 ## Verification and outstanding work
 
-The current `npm run check` pass completed the production build and 108 passing Vitest tests across 10 files. The earlier 13 passing browser tests and one built-PWA test were not rerun in this pass. A real Supabase integration probe with a fake provider returned 200 for capture start/stop and cleaned its exclusively synthetic records. This confirms the production database adapter path. It does not verify actual OpenAI speech processing.
+The current `npm run check` pass completed the production build and 135 passing Vitest tests across 13 files. Two focused legal-acceptance browser flows passed; the complete browser and built-PWA suites were updated but were not rerun in this pass. A real Supabase integration probe with a fake provider returned 200 for capture start/stop and cleaned its exclusively synthetic records. This confirms the production database adapter path. It does not verify actual OpenAI speech processing.
 
 The hosted OpenAI tests passed using `gpt-4o-mini-transcribe` and Chromium synthetic microphone input on September 7, 2026. They verified WebRTC, the server observer/SSE stream, saved transcript text in actual Supabase, Pause with all microphone tracks ended and the server session finalized, one complete approximately 225-second rollover with new saved text, Resume and network-loss cleanup. Synthetic accounts were deleted. Physical microphone, native capture and repeated long-session reliability remain unvalidated. See [status.md](status.md) for the tested deployment and evidence locations.
 
 Stripe needs credentials, environment-specific Price/webhook/portal configuration and a real sandbox purchase before production activation. See [billing.md](billing.md) for its activation contract.
 
-The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The earlier built-PWA offline/export and three capture UI checks remain evidence but were not rerun in the current pass; hosted offline behavior has not been freshly retested. Build `4` app and XCTest products compile for shutdown iPhone and iPad simulator destinations, and its unsigned generic iOS Release archive passed. XCTest execution, native runtime, the new hosted deployment, email verification/password recovery, private artifact Storage and cloud coaching remain separate work.
+The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The earlier built-PWA offline/export and capture UI checks remain evidence but were not rerun in the current pass; hosted offline behavior has not been freshly retested. Build `6` still requires runtime testing. XCTest execution, native runtime, the new hosted deployment, email verification/password recovery, private artifact Storage and cloud coaching remain separate work.
 
 The archive sets Boolean `ITSAppUsesNonExemptEncryption = false`, which matches the current native use of operating-system HTTPS and Keychain services and should prevent App Store Connect from asking the standard export-compliance question for every unchanged build. This declaration is the owner's compliance responsibility and must be reviewed again if a dependency or feature adds cryptographic functionality, VPN behavior or encryption beyond exempt operating-system services.
 

@@ -46,9 +46,11 @@ final class LiveTranscription {
     }
 
     private static let audioBufferLimit = 24
-    private static let tapBufferSize: AVAudioFrameCount = 4_096
+    /// AVAudioNode documents a supported tap-buffer range of 100–400 ms. Derive the frame
+    /// count from the active route so built-in and Bluetooth microphones both stay in range.
+    private static let tapBufferDuration = 0.12
     /// AVAudioEngine may hand the tap more frames than the size that was requested, so pooled
-    /// capture buffers are allocated with headroom instead of exactly `tapBufferSize`.
+    /// capture buffers are allocated with headroom instead of exactly the requested tap size.
     private static let tapCapacityHeadroom: AVAudioFrameCount = 4
     private static let engineReconnectWindow: Duration = .seconds(1)
     private static let engineReconnectLimit = 5
@@ -76,8 +78,8 @@ final class LiveTranscription {
     private var lastEngineReconnect: ContinuousClock.Instant?
     private var runID: UUID?
 
-    /// Starts a new transcription session. Call this only after presenting any required
-    /// participant disclosure and collecting the user's confirmation.
+    /// Starts a new transcription session after the signed-in account has accepted the current
+    /// Terms and the capture UI has presented its responsibility reminder and deliberate Start.
     func start(locale requestedLocale: Locale = .current, clearTranscript: Bool = true) async {
         guard !isBusy else { return }
 
@@ -309,25 +311,34 @@ final class LiveTranscription {
 
     private func startAudioEngine(with bridge: LiveAudioInputBridge) throws {
         let input = audioEngine.inputNode
+        // Drop the old tap before reading the new hardware format. A configuration-change
+        // notification can leave the input node's output bus pinned to the tap's prior explicit
+        // format until that tap is removed.
+        if tapInstalled {
+            input.removeTap(onBus: 0)
+            tapInstalled = false
+            tapFormat = nil
+        }
+        let hardwareFormat = input.inputFormat(forBus: 0)
+        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 else {
+            throw LiveTranscriptionError.noAudioInput
+        }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw LiveTranscriptionError.noAudioInput
         }
-        // Drop the old tap before swapping the capture pool so the render thread never reads
-        // a pool that is being replaced during a reconnect.
-        if tapInstalled {
-            input.removeTap(onBus: 0)
-            tapInstalled = false
-        }
+        let tapBufferSize = AVAudioFrameCount(
+            (format.sampleRate * Self.tapBufferDuration).rounded(.up)
+        )
         try bridge.prepareCapture(
             format: format,
-            frameCapacity: Self.tapBufferSize * Self.tapCapacityHeadroom,
+            frameCapacity: tapBufferSize * Self.tapCapacityHeadroom,
             bufferCount: Self.audioBufferLimit + 2
         )
 
         input.installTap(
             onBus: 0,
-            bufferSize: Self.tapBufferSize,
+            bufferSize: tapBufferSize,
             format: format
         ) { buffer, _ in
             bridge.receive(buffer)
@@ -547,7 +558,11 @@ final class LiveTranscription {
     /// valid, so the tap is reconnected rather than the session ended. Discarding a running
     /// engine here would tear the audio graph down underneath the render thread.
     private func audioEngineConfigurationChanged(runID id: UUID) async {
-        guard runID == id, state == .listening, let bridge = audioBridge else { return }
+        guard !audioEngineIsInvalidated,
+              runID == id,
+              state == .listening,
+              let bridge = audioBridge
+        else { return }
         let currentFormat = audioEngine.inputNode.outputFormat(forBus: 0)
         let formatChanged = tapFormat.map { $0 != currentFormat } ?? true
         // A notification that leaves the engine running on the same input format changed
