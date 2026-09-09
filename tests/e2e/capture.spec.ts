@@ -219,6 +219,7 @@ test('live capture updates the microphone indicator, shows confirmed text, and b
   await expect.poll(() => page.evaluate(() => window.__captureHarness.stopped)).toBe(1);
   await capture.getByRole('button', { name: 'Pause', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.__captureHarness.stopped)).toBe(2);
+  await expect(capture.getByRole('status')).toHaveText('Microphone paused');
   await page.getByRole('button', { name: 'Back to pages', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your notebooks' })).toBeVisible();
   await expect(page.locator('.mic-status')).toHaveAttribute('aria-label', 'Your microphone is off');
