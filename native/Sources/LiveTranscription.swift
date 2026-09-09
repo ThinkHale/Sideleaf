@@ -47,6 +47,11 @@ final class LiveTranscription {
 
     private static let audioBufferLimit = 24
     private static let tapBufferSize: AVAudioFrameCount = 4_096
+    /// AVAudioEngine may hand the tap more frames than the size that was requested, so pooled
+    /// capture buffers are allocated with headroom instead of exactly `tapBufferSize`.
+    private static let tapCapacityHeadroom: AVAudioFrameCount = 4
+    private static let engineReconnectWindow: Duration = .seconds(1)
+    private static let engineReconnectLimit = 5
     private static let conversionDrainTimeout: Duration = .seconds(2)
     private static let analyzerFinishTimeout: Duration = .seconds(5)
     private static let resultDrainTimeout: Duration = .seconds(2)
@@ -64,8 +69,11 @@ final class LiveTranscription {
     private var cleanupQuarantineID: UUID?
     private var notificationTokens: [NSObjectProtocol] = []
     private var tapInstalled = false
+    private var tapFormat: AVAudioFormat?
     private var ownedReservedLocale: Locale?
-    private var audioEngineNeedsRebuild = false
+    private var audioEngineIsInvalidated = false
+    private var engineReconnects = 0
+    private var lastEngineReconnect: ContinuousClock.Instant?
     private var runID: UUID?
 
     /// Starts a new transcription session. Call this only after presenting any required
@@ -125,8 +133,10 @@ final class LiveTranscription {
             try await analyzer.start(inputSequence: bridge.analyzerInputs)
             try ensureCurrentRun(id)
 
-            try configureAudioSession()
+            engineReconnects = 0
+            lastEngineReconnect = nil
             installInterruptionObservers(for: id)
+            try configureAudioSession()
             try startAudioEngine(with: bridge)
             try ensureCurrentRun(id)
 
@@ -293,7 +303,8 @@ final class LiveTranscription {
             mode: .spokenAudio,
             options: .allowBluetoothHFP
         )
-        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        // `notifyOthersOnDeactivation` only applies when a session is deactivated.
+        try audioSession.setActive(true)
     }
 
     private func startAudioEngine(with bridge: LiveAudioInputBridge) throws {
@@ -302,16 +313,18 @@ final class LiveTranscription {
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw LiveTranscriptionError.noAudioInput
         }
-        try bridge.prepareCapture(
-            format: format,
-            frameCapacity: Self.tapBufferSize,
-            bufferCount: Self.audioBufferLimit + 2
-        )
-
+        // Drop the old tap before swapping the capture pool so the render thread never reads
+        // a pool that is being replaced during a reconnect.
         if tapInstalled {
             input.removeTap(onBus: 0)
             tapInstalled = false
         }
+        try bridge.prepareCapture(
+            format: format,
+            frameCapacity: Self.tapBufferSize * Self.tapCapacityHeadroom,
+            bufferCount: Self.audioBufferLimit + 2
+        )
+
         input.installTap(
             onBus: 0,
             bufferSize: Self.tapBufferSize,
@@ -320,8 +333,16 @@ final class LiveTranscription {
             bridge.receive(buffer)
         }
         tapInstalled = true
+        tapFormat = format
         audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try audioEngine.start()
+        } catch {
+            input.removeTap(onBus: 0)
+            tapInstalled = false
+            tapFormat = nil
+            throw error
+        }
     }
 
     private func makeResultTask(
@@ -463,7 +484,7 @@ final class LiveTranscription {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    await self?.audioInfrastructureChanged(
+                    await self?.audioServicesWereReset(
                         "Audio services restarted. Start transcription again.",
                         runID: id
                     )
@@ -478,10 +499,7 @@ final class LiveTranscription {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    await self?.audioInfrastructureChanged(
-                        "The audio configuration changed. Start transcription again.",
-                        runID: id
-                    )
+                    await self?.audioEngineConfigurationChanged(runID: id)
                 }
             }
         )
@@ -502,8 +520,12 @@ final class LiveTranscription {
         )
     }
 
-    private func audioInfrastructureChanged(_ message: String, runID id: UUID) async {
-        audioEngineNeedsRebuild = true
+    /// A media-services reset destroys the audio graph. The engine object cannot be used
+    /// again, so it is replaced without being sent any further messages.
+    private func audioServicesWereReset(_ message: String, runID id: UUID) async {
+        audioEngineIsInvalidated = true
+        tapInstalled = false
+        tapFormat = nil
         guard runID == id else {
             if runID == nil, state != .finalizing {
                 rebuildAudioEngineIfNeeded()
@@ -518,6 +540,44 @@ final class LiveTranscription {
             return
         }
         await interrupt(message, runID: id)
+    }
+
+    /// `AVAudioEngineConfigurationChange` is routine. It arrives while the route settles after
+    /// the session is activated and again whenever the input format changes. The engine stays
+    /// valid, so the tap is reconnected rather than the session ended. Discarding a running
+    /// engine here would tear the audio graph down underneath the render thread.
+    private func audioEngineConfigurationChanged(runID id: UUID) async {
+        guard runID == id, state == .listening, let bridge = audioBridge else { return }
+        let currentFormat = audioEngine.inputNode.outputFormat(forBus: 0)
+        let formatChanged = tapFormat.map { $0 != currentFormat } ?? true
+        // A notification that leaves the engine running on the same input format changed
+        // nothing this session depends on.
+        guard !audioEngine.isRunning || formatChanged else { return }
+
+        let now = ContinuousClock.now
+        if let lastEngineReconnect, now - lastEngineReconnect < Self.engineReconnectWindow {
+            engineReconnects += 1
+        } else {
+            engineReconnects = 1
+        }
+        lastEngineReconnect = now
+        guard engineReconnects <= Self.engineReconnectLimit else {
+            await interrupt(
+                "The microphone input kept changing. Start transcription again.",
+                runID: id
+            )
+            return
+        }
+
+        audioEngine.stop()
+        do {
+            try startAudioEngine(with: bridge)
+        } catch {
+            await interrupt(
+                "The microphone input changed and could not be reconnected. Start transcription again.",
+                runID: id
+            )
+        }
     }
 
     private func interrupt(_ message: String, runID id: UUID) async {
@@ -647,19 +707,21 @@ final class LiveTranscription {
         var completedCleanly = true
         removeInterruptionObservers()
 
-        if audioEngineNeedsRebuild {
-            // Media-services reset invalidates the old engine. Replacing it avoids sending
+        if audioEngineIsInvalidated {
+            // A media-services reset invalidates the old engine. Replacing it avoids sending
             // stop/remove-tap messages to an orphaned audio graph.
             audioEngine = AVAudioEngine()
-            audioEngineNeedsRebuild = false
+            audioEngineIsInvalidated = false
             tapInstalled = false
         } else {
+            // Never release a running engine. Drop its tap and stop it first.
             if tapInstalled {
                 audioEngine.inputNode.removeTap(onBus: 0)
                 tapInstalled = false
             }
             audioEngine.stop()
         }
+        tapFormat = nil
         audioBridge?.finishCapture()
 
         do {
@@ -798,10 +860,11 @@ final class LiveTranscription {
     }
 
     private func rebuildAudioEngineIfNeeded() {
-        guard audioEngineNeedsRebuild else { return }
+        guard audioEngineIsInvalidated else { return }
         audioEngine = AVAudioEngine()
-        audioEngineNeedsRebuild = false
+        audioEngineIsInvalidated = false
         tapInstalled = false
+        tapFormat = nil
     }
 
     private func removeInterruptionObservers() {
@@ -947,7 +1010,9 @@ private final class LiveAudioInputBridge: @unchecked Sendable {
     private let analyzerContinuation: AsyncStream<AnalyzerInput>.Continuation
     private let onFailure: @Sendable (Error) -> Void
     private let workerTask: Task<Void, Never>
-    private var capturePool: LiveAudioBufferPool?
+    /// Guarded because `prepareCapture` can swap the pool from the main actor while the render
+    /// thread is reading it during a reconnect.
+    private let capturePool = OSAllocatedUnfairLock<LiveAudioBufferPool?>(uncheckedState: nil)
 
     init(
         outputFormat: AVAudioFormat,
@@ -1013,17 +1078,23 @@ private final class LiveAudioInputBridge: @unchecked Sendable {
         ) else {
             throw LiveTranscriptionError.audioBufferAllocationFailed
         }
-        capturePool = pool
+        capturePool.withLockUnchecked { $0 = pool }
     }
 
     func receive(_ buffer: AVAudioPCMBuffer) {
-        guard let capturePool else {
+        // The audio callback must never wait for the pool reference. A single missed buffer is
+        // preferable to blocking the render thread.
+        let lookup = capturePool.withLockIfAvailableUnchecked { pool -> LiveAudioBufferPool? in
+            pool
+        }
+        guard let currentPool = lookup else { return }
+        guard let pool = currentPool else {
             capturedContinuation.finish()
             onFailure(LiveTranscriptionError.audioBufferOverrun)
             return
         }
         let captured: CapturedAudioBuffer
-        switch capturePool.copy(buffer) {
+        switch pool.copy(buffer) {
         case .captured(let buffer):
             captured = buffer
         case .temporarilyUnavailable:
