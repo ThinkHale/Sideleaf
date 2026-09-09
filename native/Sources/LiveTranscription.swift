@@ -336,11 +336,14 @@ final class LiveTranscription {
             bufferCount: Self.audioBufferLimit + 2
         )
 
+        // AVFoundation invokes this callback on its real-time audio queue. An unannotated
+        // closure created in this @MainActor type inherits main-actor isolation and Swift 6
+        // traps on the first device buffer instead of reporting a catchable error.
         input.installTap(
             onBus: 0,
             bufferSize: tapBufferSize,
             format: format
-        ) { buffer, _ in
+        ) { @Sendable [bridge] buffer, _ in
             bridge.receive(buffer)
         }
         tapInstalled = true

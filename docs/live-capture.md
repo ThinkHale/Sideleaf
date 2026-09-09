@@ -1,6 +1,6 @@
 # Live capture implementation and setup
 
-The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Native build `6` has a separate on-device transcription path and audio-engine lifecycle hardening; physical microphone and native runtime validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
+The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Native build `7` has a separate on-device transcription path, audio-engine lifecycle hardening, and an explicitly sendable real-time tap callback so Swift 6 does not enforce main-actor isolation on AVFoundation's audio queue. Physical microphone and native runtime validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
 
 ## Native on-device transcription boundary
 

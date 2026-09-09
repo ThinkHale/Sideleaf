@@ -57,7 +57,7 @@ The in-app browser was available and used first for visible inspection once the 
 
 ## Not tested or not implemented
 
-Real prepare/start/pause/resume/end/reopen cloud transcription in the earlier dated baseline; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad microphone, on-device transcription and live Pencil hardware; signed App Store archive/upload; build-6 hosted deployment; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
+Real prepare/start/pause/resume/end/reopen cloud transcription in the earlier dated baseline; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad microphone, on-device transcription and live Pencil hardware; signed App Store archive/upload; build-7 TestFlight installation; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
 
 These are acceptance gaps, not passes. The exact next implementation steps are in `status.md`.
 
@@ -113,3 +113,11 @@ The concept-to-render comparison, copy differences, and intentional design devia
 - XcodeGen regenerated the checked-in project. Warnings-as-errors simulator build-for-testing and generic iPhoneOS build passed without booting a simulator. XCTest compiled but did not execute.
 - An unsigned generic iOS Release archive passed. Its `Info.plist` reports bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, build `6`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, iPhone/iPad AppIcon entries, and Boolean `ITSAppUsesNonExemptEncryption = false`.
 - The microphone path now reconnects routine audio-engine configuration changes, removes the old tap before reading a changed route format, validates input/output formats, derives a 120 ms tap buffer from the active sample rate, and stops/untaps before releasing an engine. This is a reasoned fix for the reported crash until physical-iPhone testing or an `.ips` report confirms the exact signature.
+
+### Swift 6 microphone callback isolation fix, build 7
+
+- Compiler SIL inspection reproduced the defect: an unannotated AVAudioEngine tap closure created inside the `@MainActor` transcription controller is emitted with `MainActor` isolation. AVFoundation calls that closure on its real-time audio queue, so Swift 6 can trap in `_swift_task_checkIsolatedSwift` on the first microphone buffer.
+- The tap callback is now explicitly `@Sendable`, captures only the thread-safe audio bridge, and is emitted as `nonisolated`. This matches [Apple Developer Technical Support's documented workaround](https://developer.apple.com/forums/thread/793455) for the same `AVAudioNodeTap::CheckEmitBuffer` crash signature.
+- XcodeGen regenerated the checked-in project at build `7`. Warnings-as-errors generic simulator build, shutdown-iPhone build-for-testing, generic iPhoneOS build, and unsigned Release archive all passed. XCTest compiled but did not execute because no simulator was booted.
+- The archive's `Info.plist` reports bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, build `7`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, iPhone/iPad AppIcon entries, and Boolean `ITSAppUsesNonExemptEncryption = false`. Its executable is arm64.
+- The paired iPhone was offline and no local Sideleaf `.ips` report was available. Installing build `7` and starting the microphone on that phone remains the decisive runtime confirmation.
