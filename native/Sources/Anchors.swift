@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 
 // Codable counterparts use the web contract's UTF-16 offset convention.
-struct NativeAnchor: Codable, Equatable {
+struct NativeAnchor: Codable, Equatable, Sendable {
     var blockId: UUID
     var revision: Int
     var start: Int
@@ -40,7 +40,7 @@ struct NativeAnchor: Codable, Equatable {
     }
 }
 
-struct NativeAnnotation: Codable, Identifiable {
+struct NativeAnnotation: Codable, Identifiable, Equatable, Sendable {
     var id = UUID()
     var kind = "important"
     var anchor: NativeAnchor

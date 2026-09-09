@@ -22,7 +22,7 @@ function request(
   app: ReturnType<typeof createApp>,
   path: string,
   body?: unknown,
-  options: { cookie?: string; ip?: string; origin?: string } = {},
+  options: { authorization?: string; cookie?: string; ip?: string; origin?: string } = {},
 ) {
   return app.request(`${origin}/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
@@ -30,6 +30,7 @@ function request(
       origin: options.origin ?? origin,
       'content-type': 'application/json',
       'x-forwarded-for': options.ip ?? '203.0.113.20',
+      ...(options.authorization ? { authorization: options.authorization } : {}),
       ...(options.cookie ? { cookie: options.cookie } : {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -104,6 +105,34 @@ describe.sequential('production email/password beta', () => {
       (await request(createApp(storage.db, config), '/pages', undefined, { cookie })).status,
     ).toBe(200);
     expect((await request(freshApp, '/pages')).status).toBe(401);
+  });
+
+  it('accepts only signed bearer sessions and still rejects cross-origin mutations', async () => {
+    const app = createApp(storage.db, config);
+    const signin = await request(app, '/auth/sign-in/email', {
+      email: 'beta-user@example.test',
+      password,
+    });
+    expect(signin.status, await signin.clone().text()).toBe(200);
+    const token = signin.headers.get('set-auth-token');
+    expect(token).toBeTruthy();
+    expect(token).toContain('.');
+
+    const authorization = `Bearer ${token}`;
+    expect((await request(app, '/pages', undefined, { authorization })).status).toBe(200);
+    expect(
+      (await request(app, '/pages', undefined, { authorization: 'Bearer invalid-token' })).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          app,
+          '/notebooks',
+          { id: crypto.randomUUID(), name: 'Rejected notebook' },
+          { authorization, origin: 'https://untrusted.example' },
+        )
+      ).status,
+    ).toBe(403);
   });
 
   it('rejects a signup from another origin after production password login is enabled', async () => {

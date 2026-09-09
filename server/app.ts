@@ -2,9 +2,10 @@ import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { secureHeaders } from 'hono/secure-headers';
 import { and, eq, desc } from 'drizzle-orm';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { notebooks, pages, revisions, user } from './schema.js';
-import { pageWriteSchema } from '../shared/domain.js';
+import { pageWriteSchema, type NotebookDocument } from '../shared/domain.js';
 import { exportMarkdown } from '../shared/export.js';
 import type { Database } from './database.js';
 import type { Config } from './config.js';
@@ -12,6 +13,16 @@ import { passwordAuthEnabled } from './config.js';
 import { createAuth } from './auth.js';
 import { createBilling, BillingError } from './billing.js';
 import { createCapture, captureReady, CaptureError, CAPTURE_DISCLOSURE } from './capture.js';
+
+function protectedBlocksAreUnchanged(
+  current: NotebookDocument | undefined,
+  proposed: NotebookDocument,
+) {
+  const proposedProtected = proposed.blocks.filter((block) => block.source !== 'personal');
+  if (!current) return proposedProtected.length === 0;
+  const currentProtected = current.blocks.filter((block) => block.source !== 'personal');
+  return isDeepStrictEqual(proposedProtected, currentProtected);
+}
 
 export function createApp(db: Database, config: Config) {
   const auth = createAuth(db, config);
@@ -120,9 +131,6 @@ export function createApp(db: Database, config: Config) {
   app.put('/api/pages/:id', async (c) => {
     const id = z.string().uuid().parse(c.req.param('id'));
     const input = pageWriteSchema.parse(await c.req.json());
-    // Only the provider observer may write confirmed transcript provenance.
-    if (input.document.blocks.some((b) => b.source !== 'personal'))
-      return c.json({ error: 'Transcript and AI blocks require a trusted ingestion route.' }, 422);
     const uid = c.get('userId');
     const [notebook] = await db
       .select()
@@ -148,6 +156,10 @@ export function createApp(db: Database, config: Config) {
             version: prior.version,
           },
         };
+      // Personal editors may round-trip trusted blocks, but only the provider
+      // observer may add, change, remove, reorder, or relabel those blocks.
+      if (!protectedBlocksAreUnchanged(existing?.document, input.document))
+        return { kind: 'protected-blocks-changed' as const };
       if ((existing?.version ?? 0) !== input.baseVersion)
         return { kind: 'conflict' as const, page: existing ?? null };
       const version = input.baseVersion + 1;
@@ -182,6 +194,11 @@ export function createApp(db: Database, config: Config) {
       return { kind: 'saved' as const, page };
     });
     if (result.kind === 'missing') return c.json({ error: 'Page not found.' }, 404);
+    if (result.kind === 'protected-blocks-changed')
+      return c.json(
+        { error: 'Transcript and AI blocks must remain unchanged in personal edits.' },
+        422,
+      );
     if (result.kind === 'conflict')
       return c.json(
         { error: 'Another edit has been saved. Your draft is preserved.', current: result.page },

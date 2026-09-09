@@ -1,8 +1,10 @@
 # Sideleaf native iPhone and iPad feasibility slice
 
-This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. On September 8, 2026, the app and unit-test products compiled successfully with Xcode 26.6 against the iOS/iPadOS 26.5 simulator SDK. No simulator was booted, so XCTest execution, runtime UI, physical iPhone/iPad, touch-ink and Apple Pencil behavior remain unvalidated.
+This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. On September 8, 2026, XcodeGen regenerated the checked-in project for build `4`. Build-for-testing succeeded against shutdown iPhone 17 Pro and iPad Pro simulator destinations, compiling both the app and XCTest products, and an unsigned generic iOS Release archive succeeded. No simulator was booted, so XCTest did not execute; runtime UI, physical iPhone/iPad, touch-ink, Apple Pencil and microphone behavior remain unvalidated.
 
-Source includes a local notebook library and typed page editor, PencilKit ink serialization and PNG preview, native text rectangle hit testing in explicit Mark mode, original-quote preservation, and a SpeechTranscriber hardware/language/installed-asset probe. Model download requires a deliberate button press. The probe does not access the microphone.
+Source includes a local notebook library and typed page editor, PencilKit ink serialization and PNG preview, native text rectangle hit testing in explicit Mark mode, and original-quote preservation. Build `4` adds email/password sign-in through the Sideleaf backend, a signed Better Auth bearer stored in Keychain, and revision-based synchronization for typed text and semantic marks. It preserves the rest of each shared remote document rather than replacing unknown blocks or web ink. PencilKit freehand ink remains device-only, and guest pages require an explicit adoption action before they are uploaded to an account.
+
+Build `4` also adds iOS/iPadOS 26 on-device live transcription. The user must confirm participant consent before Sideleaf requests microphone and speech access. Microphone buffers are processed in memory by Apple's speech APIs and are neither saved as audio files nor uploaded; the resulting text can be saved and synchronized as user-authored personal content, not as a server-confirmed cloud transcript. Physical-device microphone, interruption and transcription behavior still require validation.
 
 ## Supplied branding
 
@@ -19,7 +21,9 @@ xcodebuild -project Sideleaf.xcodeproj -scheme Sideleaf -destination 'generic/pl
 
 `project.yml` remains the declarative source for project settings. After changing it, install XcodeGen and run `xcodegen generate`, then commit the regenerated `Sideleaf.xcodeproj` files with the specification change.
 
-The first App Store release uses marketing version `1.0`; the universal iPhone/iPad upload is build `3`. Update `MARKETING_VERSION` for a user-visible release and increment `CURRENT_PROJECT_VERSION` for every App Store Connect upload, then regenerate the checked-in project. A previously uploaded iPad-only build remains iPad-only, so TestFlight must receive build `3` or later before iPhone testers can install it.
+The first App Store release uses marketing version `1.0`; the authentication, synchronization and on-device transcription update is build `4`. Update `MARKETING_VERSION` for a user-visible release and increment `CURRENT_PROJECT_VERSION` for every App Store Connect upload, then regenerate the checked-in project. The previously uploaded iPad-only build remains iPad-only; TestFlight must receive build `4` for the native connectivity and transcription changes described here.
+
+The archived build reports `com.thinkhale.sideleaf`, version `1.0` (`4`), minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, and iPhone/iPad AppIcon entries. It also sets the Boolean `ITSAppUsesNonExemptEncryption` value to `false`, which answers App Store Connect's export-compliance prompt for the current app's OS-provided HTTPS and Keychain use. Export compliance remains the owner's responsibility: reassess that declaration before release if native cryptography, a cryptographic SDK, VPN behavior or other encryption capability is added.
 
 For tests, choose an actually installed iPhone or iPad simulator identifier from `xcrun simctl list devices` and pass it as the destination to `xcodebuild test`. No simulator name is assumed. The app target uses the registered bundle identifier `com.thinkhale.sideleaf` with automatic signing for the ThinkHale team. Xcode may need to download or create the matching provisioning profile during the first physical-device build.
 
@@ -27,10 +31,10 @@ For tests, choose an actually installed iPhone or iPad simulator identifier from
 
 `native/Sideleaf.xcodeproj` is checked in so Xcode, CI and fresh clones can build without a generation step. It is generated from `native/project.yml`, which remains the source of truth. The app and test targets support iPhone and iPad (`TARGETED_DEVICE_FAMILY: '1,2'`) with a minimum of iOS/iPadOS 26. iPhone is portrait-only for this release; iPad supports portrait, upside-down portrait and both landscape orientations. Compact-width navigation, controls and finger drawing are adapted in source, but still need simulator and device runtime testing.
 
-The hosted API origin is `https://sideleaf.vercel.app`, with authenticated routes under `/api`. The native source still uses local models and does not yet sign in or synchronize with the hosted notebook. Connect Better Auth sessions and the revision protocol before adding cloud capture or paid access.
+The hosted API origin is `https://sideleaf.vercel.app`, with authenticated routes under `/api`. Native email/password requests use that backend rather than connecting directly to Supabase. Better Auth returns a signed bearer. The bearer and cached account identity are treated as one session state in device-only Keychain records and are cleared together on sign-out or invalidation; the cached identity can reopen that account's local pages while offline but cannot authorize API access. Unsafe API requests also send the expected hosted origin. Signed-in pages use the backend's base-version and stable-mutation-ID protocol, retain an account-scoped local copy during network failures and preserve both sides of a conflict for recovery. Hosted deployment and physical-device verification of this build remain pending.
 
 - [Hosting and secrets](../docs/hosting-secrets.md) describes the shared API and deployment. Database, OpenAI, Stripe and authentication server secrets stay in Vercel; the native app stores only its user's session credentials securely.
-- [Live capture](../docs/live-capture.md) documents the working browser WebRTC flow, server-confirmed transcripts, usage limits, consent and cleanup. Native cloud capture remains to be implemented and validated. The existing on-device readiness probe does not provide this integration.
+- [Live capture](../docs/live-capture.md) distinguishes the working browser WebRTC flow from native on-device transcription. Native audio does not use the cloud capture routes or provider allowance, and physical-device audio behavior remains unverified.
 - [Billing](../docs/billing.md) documents server-authoritative access and Stripe web purchases. Stripe account configuration and sandbox verification are pending. StoreKit purchase verification and native entitlement integration remain unfinished.
 - [Implementation status](../docs/status.md) records completed browser/provider checks and remaining native work. A successful native compile does not establish runtime behavior or web/native feature parity.
 
@@ -39,9 +43,9 @@ The hosted API origin is `https://sideleaf.vercel.app`, with authenticated route
 - Run `AnchorTests` and add UI tests for editing, touch/Pencil tools, compact navigation, persistence, reflow and selection.
 - Verify iPhone portrait touch drawing and scrolling, plus iPad rotation, palm rejection, long strokes, Pencil hover, touch scrolling and interruption behavior on real hardware. Browser pointer tests are not native input hardware validation.
 - Complete native text phrase actions, annotation undo, ink selection and preparation screens.
-- Map the local model to shared multi-block contracts, attach Better Auth session handling, protected token storage and the backend revision protocol.
+- Validate build `4` sign-in restoration, Keychain cleanup, explicit guest-page adoption, reconnect retries and two-client conflict recovery against the hosted API.
 - Upload only editable native ink plus portable artifacts through owner-authorized artifact routes; define origin/scale metadata and cross-client edit ownership. Those routes do not yet exist.
-- Add a bounded on-device capture pipeline and final/interim segment handling without copying the recording and unbounded-stream parts of Apple's sample. Check assets before requesting microphone permission.
+- Validate the bounded on-device transcription pipeline on physical iPhone and iPad hardware, including permission denial, model availability, interruptions, route changes, backgrounding, finalization and microphone release.
 - Connect server-authoritative allowances and StoreKit verified entitlements before assisted capture is available.
 
-Sideleaf is the product and target name. Its distribution bundle ID is `com.thinkhale.sideleaf`; SwiftData model names remain unchanged. `OnDeviceReadiness.swift` requires iOS/iPadOS 26. Unsupported hardware or language produces an explicit unavailable result; there is no remote fallback.
+Sideleaf is the product and target name. Its distribution bundle ID is `com.thinkhale.sideleaf`; SwiftData model names remain unchanged. Native speech requires iOS/iPadOS 26. Unsupported hardware, permissions, language or model availability produces an explicit unavailable result; there is no remote transcription fallback.

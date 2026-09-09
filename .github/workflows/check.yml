@@ -13,6 +13,7 @@ jobs:
           grep -Eq 'MARKETING_VERSION = [^;]+;' native/Sideleaf.xcodeproj/project.pbxproj
           grep -Eq 'CURRENT_PROJECT_VERSION = [^;]+;' native/Sideleaf.xcodeproj/project.pbxproj
           grep -q 'ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;' native/Sideleaf.xcodeproj/project.pbxproj
+          grep -q 'INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;' native/Sideleaf.xcodeproj/project.pbxproj
       - uses: actions/setup-node@v4
         with:
           node-version: 24

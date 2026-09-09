@@ -1,6 +1,12 @@
 # Live capture implementation and setup
 
-The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Physical microphone and native capture validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
+The browser has an OpenAI Realtime transcription path. On September 7, 2026, hosted Chromium tests with synthetic microphone input passed real OpenAI transcription, Supabase text persistence, Pause/Resume, one complete rollover and network-loss cleanup. Capture is enabled on the verified deployment and requires healthy session supervision. Native build `4` adds a separate on-device transcription path; physical microphone and native runtime validation remain separate work. See [verification status](status.md) for the exact scope and evidence.
+
+## Native on-device transcription boundary
+
+The native iPhone/iPad path uses Apple's iOS/iPadOS 26 speech analysis APIs and does not connect microphone audio to OpenAI, Vercel or Supabase. Before starting, the user must explicitly confirm participant consent and grant microphone and speech access. Audio buffers are bounded in memory, are not written to an audio file and are not queued or uploaded. Stopping, an interruption, a route loss or leaving the capture UI releases the audio engine.
+
+Final on-device text can be saved with the page and synchronized through the ordinary revision protocol as personal user content. It must not be represented as a server-observed transcript segment, and it does not consume browser cloud-capture allowance. Device/language/model availability is surfaced without a remote fallback. Physical iPhone/iPad microphone, permission, interruption, background and finalization behavior has not yet been verified.
 
 ## Transport and trust boundary
 
@@ -24,7 +30,7 @@ sequenceDiagram
   API->>Browser: Confirmed saved transcript segments
 ```
 
-`server/openai-capture.ts` creates a transcription-only call at `/v1/realtime/calls` using `gpt-4o-mini-transcribe` and server voice activity detection. `server/capture.ts` attaches to the call over a server-side WebSocket. The browser uses WebRTC for audio and a data channel for interim display. No shared OpenAI key is sent to the browser. The same future authenticated API can serve native clients without putting a provider key in Xcode. [OpenAI Realtime transcription](https://developers.openai.com/api/docs/guides/realtime-transcription), [server-side controls](https://developers.openai.com/api/docs/guides/realtime-server-controls).
+`server/openai-capture.ts` creates a transcription-only call at `/v1/realtime/calls` using `gpt-4o-mini-transcribe` and server voice activity detection. `server/capture.ts` attaches to the call over a server-side WebSocket. The browser uses WebRTC for audio and a data channel for interim display. No shared OpenAI key is sent to the browser, and the native on-device path does not call these cloud-capture routes. [OpenAI Realtime transcription](https://developers.openai.com/api/docs/guides/realtime-transcription), [server-side controls](https://developers.openai.com/api/docs/guides/realtime-server-controls).
 
 Only provider-final transcript events observed by the server become saved transcript records. Client text and client plan flags are not accepted as trusted provenance or paid entitlement. The server validates page/session ownership on each route. Ordinary page writes still reject forged transcript and AI blocks. Saved transcript text is separate from the manual page document.
 
@@ -79,4 +85,4 @@ The deployed provider credential/model access, capture migrations and healthy wa
 
 For a new environment, configure the provider credential, apply the migrations, install the authenticated watchdog and verify fresh health before enabling capture. Review that account's provider retention mode against the [audio privacy document](privacy.md). OpenAI Realtime's default abuse-monitoring retention is distinct from Sideleaf's no-saved-audio behavior. [OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data).
 
-The server fails closed when configuration, allowance, ownership or supervision checks do not pass. Manual notes and already saved text remain available. This implementation does not add native capture, native synchronization, speaker attribution, coaching, automatic summaries or system/remote-call audio capture.
+The server fails closed when configuration, allowance, ownership or supervision checks do not pass. Manual notes and already saved text remain available. Native on-device transcription remains independent of this cloud service and cannot capture system or remote-call audio. This implementation does not add native cloud capture, speaker attribution, coaching or automatic summaries.

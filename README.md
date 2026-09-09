@@ -41,7 +41,7 @@ Then open http://127.0.0.1:3001. `preview` serves the built assets with local de
 - Responsive library, notebook, preparation and settings; centered focus mode; accurate microphone status; keyboard labels and reduced-motion handling.
 - Live microphone transcription over WebRTC, server-confirmed transcript storage, pause/resume, connection cleanup and authenticated usage accounting. No saved audio recordings or offline audio queue.
 - Free and Pro plan UI, server-authoritative entitlements, Stripe Checkout, customer portal, signed webhooks, cancellation and refund handling. Payments stay disabled until Stripe is configured.
-- Native SwiftUI/SwiftData/PencilKit source, native anchor tests, and a SpeechTranscriber device/language/asset readiness probe. Build `3` targets iPhone and iPad on iOS/iPadOS 26 or later; the app and test products compile with Xcode 26.6, while simulator runtime and physical-device validation remain.
+- Native SwiftUI/SwiftData/PencilKit source for iPhone and iPad, with email/password sign-in, account-scoped offline caching, revision-based synchronization for typed text, semantic marks and saved on-device transcript text, plus native anchor tests. Build `4` targets iOS/iPadOS 26 or later; build-for-testing compiled the app and XCTest products for iPhone 17 Pro and iPad Pro simulator destinations, and an unsigned generic iOS Release archive succeeded. No simulator was booted, XCTest did not execute, and physical-device behavior remains unverified. PencilKit ink remains device-only.
 
 ## Verification commands
 
@@ -55,7 +55,7 @@ Install the test browser once with `npx playwright install chromium`. `test:e2e`
 
 `npm run format` formats the web, API, contracts, tests and documentation. The local SQL migration `server/migrations/001_notebook.sql` is applied at development startup. `npm run db:migrate` applies that local/general PostgreSQL migration explicitly while the embedded API is stopped. Hosted Supabase uses the reviewed migrations under `supabase/migrations/`; the production request-serving process never runs schema DDL.
 
-The current pass has a passing production build, 106 Vitest tests and 13 browser tests. Hosted synthetic speech passed the real OpenAI connection, server-confirmed transcript storage, microphone pause and session closure. Synthetic test accounts were removed. Detailed evidence and remaining native/payment validation are recorded in [status.md](docs/status.md).
+The current `npm run check` pass includes the production build and 108 passing Vitest tests across 10 files. The earlier 13 browser end-to-end tests and one built-PWA test remain evidence but were not rerun in this pass. Hosted synthetic speech previously passed the real OpenAI connection, server-confirmed transcript storage, microphone pause and session closure. Synthetic test accounts were removed. Detailed evidence and remaining native/payment validation are recorded in [status.md](docs/status.md).
 
 ## Deployment configuration
 
@@ -69,6 +69,6 @@ Local `.env` overrides are optional and no secrets belong in `.env.example`. Kee
 
 ## Current boundary
 
-Live web transcription and assisted usage accounting are implemented. Real text-AI coaching, grounded summaries, full native synchronization, and completed-meeting workflows remain unfinished. Stripe purchase activation and native store billing need their provider setup and end-to-end validation. The early native project now has a universal iPhone/iPad target and compiles for the simulator SDK, but it has not yet been exercised in a simulator or on physical iPhone/iPad hardware.
+Live web transcription and assisted usage accounting are implemented. Native sign-in and revision-based synchronization are implemented for typed text, semantic marks and saved on-device transcript text; PencilKit ink remains local until owned artifact routes and a shared editing contract exist. Real text-AI coaching, grounded summaries and completed-meeting workflows remain unfinished. Stripe purchase activation and native store billing need their provider setup and end-to-end validation. The universal iPhone/iPad build `4` compiles for both simulator form factors and archives unsigned, but it has not been exercised in a booted simulator or on physical iPhone/iPad hardware. The API changes in this commit also require hosted deployment verification.
 
 See [status and continuation checklist](docs/status.md), [architecture](docs/architecture.md), [privacy evidence](docs/privacy.md), [billing design](docs/billing.md), [acceptance tests](docs/acceptance-tests.md), [design comparison](docs/design-review.md), and [native setup](native/README.md).

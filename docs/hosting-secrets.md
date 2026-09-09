@@ -1,15 +1,15 @@
 # Hosting and secrets for Sideleaf
 
-Updated September 7, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). The Vercel Sideleaf project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf), and Supabase project `qhgzilyanroqomafhybg` hosts the private application database. Browser capture passed a hosted test with synthetic microphone input, real OpenAI transcription and Supabase persistence. Stripe billing is implemented, with sandbox credentials/testing still pending. Current evidence is recorded in [status.md](status.md).
+Updated September 8, 2026. Sideleaf's authenticated notebook beta is hosted at [sideleaf.vercel.app](https://sideleaf.vercel.app). The Vercel Sideleaf project is linked to [ThinkHale/Sideleaf](https://github.com/ThinkHale/Sideleaf), and Supabase project `qhgzilyanroqomafhybg` hosts the private application database. Browser capture passed a hosted test with synthetic microphone input, real OpenAI transcription and Supabase persistence. Stripe billing is implemented, with sandbox credentials/testing still pending. Current evidence is recorded in [status.md](status.md).
 
 ## One shared backend
 
-Vercel hosts the built React web app and the Node/Hono API. Supabase hosts PostgreSQL; Better Auth owns Sideleaf accounts and sessions. The web app uses same-origin `/api/*` routes. Browser microphone audio connects directly to OpenAI over WebRTC, while the server authorizes the session and observes final transcript events. The future native app will use the same authenticated HTTPS API.
+Vercel hosts the built React web app and the Node/Hono API. Supabase hosts PostgreSQL; Better Auth owns Sideleaf accounts and sessions. The web app uses same-origin `/api/*` routes. Browser microphone audio connects directly to OpenAI over WebRTC, while the server authorizes the session and observes final transcript events. The native app uses the same authenticated HTTPS API for sign-in and revision-based text/mark/transcript synchronization.
 
 ```mermaid
 flowchart LR
   Web[Web app on Vercel] --> API[Hono API on Vercel]
-  Native[Future iOS and iPadOS sync] --> API
+  Native[iOS and iPadOS sync] --> API
   Secrets[Vercel server environment] --> API
   API --> DB[Supabase Postgres]
   Web -->|Microphone WebRTC| AI[OpenAI Realtime]
@@ -19,21 +19,21 @@ flowchart LR
   API -. planned artifacts .-> Files[Private Supabase Storage]
 ```
 
-The browser OpenAI path has passed the hosted synthetic-microphone test described below. Stripe still needs a real sandbox test. The native app is distributed through Apple's tooling and only needs the public API URL and its user's session credentials. Native sign-in and synchronization remain unfinished; notes do not yet synchronize with the native source.
+The browser OpenAI path has passed the hosted synthetic-microphone test described below. Stripe still needs a real sandbox test. The native app is distributed through Apple's tooling and only needs the public API URL and its user's session credentials. Native sign-in and revision-based synchronization are implemented in build `4`; hosted deployment verification of the accompanying API changes and physical-device runtime testing remain pending. PencilKit ink remains local.
 
 ## Components and execution
 
-| Component                | Responsibility and status                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| GitHub                   | Source repository and Vercel project linkage                                          |
-| Vercel static output     | Vite build under `dist/web`                                                           |
-| Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                          |
-| Supabase Postgres        | 15 private application tables for auth, notes, capture, usage and billing             |
-| Better Auth              | Password hashing, sessions and shared database-backed authentication limits           |
-| Supabase pg_cron/pg_net  | 30-second capture cleanup calls using a Vault-held bearer secret                      |
-| OpenAI                   | `gpt-4o-mini-transcribe` WebRTC, observer and saved text verified September 7, 2026     |
-| Stripe                   | Implemented Checkout, portal, webhooks and entitlements; sandbox setup pending        |
-| Supabase private Storage | Planned editable ink artifacts and permitted attachments                              |
+| Component                | Responsibility and status                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| GitHub                   | Source repository and Vercel project linkage                                        |
+| Vercel static output     | Vite build under `dist/web`                                                         |
+| Vercel Node function     | `api/index.ts` initializes Hono for `/api/*`                                        |
+| Supabase Postgres        | 15 private application tables for auth, notes, capture, usage and billing           |
+| Better Auth              | Password hashing, sessions and shared database-backed authentication limits         |
+| Supabase pg_cron/pg_net  | 30-second capture cleanup calls using a Vault-held bearer secret                    |
+| OpenAI                   | `gpt-4o-mini-transcribe` WebRTC, observer and saved text verified September 7, 2026 |
+| Stripe                   | Implemented Checkout, portal, webhooks and entitlements; sandbox setup pending      |
+| Supabase private Storage | Planned editable ink artifacts and permitted attachments                            |
 
 The root [vercel.json](../vercel.json) is active and requests a 300-second function duration. Capture intentionally rolls its observer at about 225 seconds, with a disclosed reconnect gap. API responses are not cached by the service worker or CDN. The former [external-proxy template](../deploy/vercel.example.json) is historical and inactive. There is no separate Render service.
 
@@ -69,7 +69,7 @@ Shared credentials belong in the Sideleaf Vercel project's server environment. T
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`     | ID public, secret private | Optional Google login configuration; unverified                                      |
 | `SUPABASE_SECRET_KEY` / `SUPABASE_URL`          | Key private, URL public   | Future private-Storage configuration, not needed by current clients                  |
 
-Do not put shared credentials in `VITE_*`, native configuration files or Xcode build settings. Native Keychain storage is for the user's own session. Rotating a provider credential should require updating the backend and redeploying, without rebuilding clients. Hosted Stripe Checkout redirects do not require a browser publishable key.
+Do not put shared credentials in `VITE_*`, native configuration files or Xcode build settings. Native Keychain storage is only for the user's bearer and cached account identity. Those device-only records form one session state and are cleared together on sign-out or invalidation. The cached identity selects the correct account-scoped offline pages but does not grant API access. Rotating a provider credential should require updating the backend and redeploying, without rebuilding clients. Hosted Stripe Checkout redirects do not require a browser publishable key.
 
 The configured Windows launchers are `scripts/set-openai-key.cmd` and `scripts/set-stripe-key.cmd`. They prompt with hidden input and pass credentials through Vercel CLI stdin, creating no secret file. The Stripe launcher supports `preview`; the shared `scripts/set-provider-secret.mjs` accepts an explicit target and supports OpenAI, Stripe server and Stripe webhook secrets. Default target is production. Preview credentials must match preview billing mode. The launchers do not create products, publish legal terms, enable charges or prove a working provider integration.
 
@@ -91,16 +91,18 @@ The runtime connection has verified its role, schema and auth table and demonstr
 
 Keep real development secrets outside the OneDrive checkout or inject them into the process environment. Local scripts still load repository `.env` when present; an external-secret-file loader is not implemented. Git, Docker and `.vercelignore` exclude local databases, real environment files and generated service metadata. The blank `.env.example` remains trackable. Vercel upload exclusions are separate from Git ignores; the earlier clean deployment manifest was checked.
 
-Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). Build `3` targets iPhone and iPad on iOS/iPadOS 26 or later. Complete signing and App Store validation, connect authentication and revision-based synchronization, and test real iPhone touch behavior plus iPad/Pencil behavior. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
+Continue on the Mac from the same GitHub repository. Node 24 runs the web/API tools. The checked-in native Xcode project opens directly in Xcode 26 or later; `native/project.yml` and XcodeGen maintain its structure, following [native/README.md](../native/README.md). XcodeGen regenerated build `4`, which targets iPhone and iPad on iOS/iPadOS 26 or later. Build-for-testing compiled the app and XCTest products for both simulator form factors, and an unsigned generic iOS Release archive passed. Complete signing, App Store upload and physical iPhone/iPad testing. Production database, OpenAI and Stripe credentials do not belong in the Xcode project.
 
 ## Verification and outstanding work
 
-The current pass has 106 passing Vitest tests and 13 passing browser tests, including capture/billing boundary tests and focus-mode repair. A real Supabase integration probe with a fake provider returned 200 for capture start/stop and cleaned its exclusively synthetic records. This confirms the production database adapter path. It does not verify actual OpenAI speech processing.
+The current `npm run check` pass completed the production build and 108 passing Vitest tests across 10 files. The earlier 13 passing browser tests and one built-PWA test were not rerun in this pass. A real Supabase integration probe with a fake provider returned 200 for capture start/stop and cleaned its exclusively synthetic records. This confirms the production database adapter path. It does not verify actual OpenAI speech processing.
 
 The hosted OpenAI tests passed using `gpt-4o-mini-transcribe` and Chromium synthetic microphone input on September 7, 2026. They verified WebRTC, the server observer/SSE stream, saved transcript text in actual Supabase, Pause with all microphone tracks ended and the server session finalized, one complete approximately 225-second rollover with new saved text, Resume and network-loss cleanup. Synthetic accounts were deleted. Physical microphone, native capture and repeated long-session reliability remain unvalidated. See [status.md](status.md) for the tested deployment and evidence locations.
 
 Stripe needs credentials, environment-specific Price/webhook/portal configuration and a real sandbox purchase before production activation. See [billing.md](billing.md) for its activation contract.
 
-The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The built-PWA offline/export test passed again in this development pass; hosted offline behavior has not been freshly retested. Three capture UI checks also passed after the mobile margin/footer adjustment. The native iPhone/iPad app and test products compile without a booted simulator; runtime remains unverified. Email verification/password recovery, native sync, private artifact Storage and cloud coaching remain separate work.
+The earlier hosted notebook passed authentication, persistence, ownership, origins, retry/conflict, exports and deletion, plus desktop/phone UI reload persistence. The earlier built-PWA offline/export and three capture UI checks remain evidence but were not rerun in the current pass; hosted offline behavior has not been freshly retested. Build `4` app and XCTest products compile for shutdown iPhone and iPad simulator destinations, and its unsigned generic iOS Release archive passed. XCTest execution, native runtime, the new hosted deployment, email verification/password recovery, private artifact Storage and cloud coaching remain separate work.
+
+The archive sets Boolean `ITSAppUsesNonExemptEncryption = false`, which matches the current native use of operating-system HTTPS and Keychain services and should prevent App Store Connect from asking the standard export-compliance question for every unchanged build. This declaration is the owner's compliance responsibility and must be reviewed again if a dependency or feature adds cryptographic functionality, VPN behavior or encryption beyond exempt operating-system services.
 
 Sideleaf does not save audio recordings. Browser WebRTC audio and OpenAI's published provider retention are different parts of that disclosure. The implemented flow and remaining verification are documented in [privacy.md](privacy.md).

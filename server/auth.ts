@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { bearer } from 'better-auth/plugins';
 import type { Database } from './database.js';
 import type { Config } from './config.js';
 import { passwordAuthEnabled } from './config.js';
@@ -10,6 +11,7 @@ export function createAuth(db: Database, config: Config) {
     baseURL: config.origin,
     secret: config.secret,
     database: drizzleAdapter(db, { provider: 'pg', schema }),
+    plugins: [bearer({ requireSignature: true })],
     trustedOrigins: [config.origin],
     emailAndPassword: { enabled: passwordAuthEnabled(config), minPasswordLength: 10 },
     socialProviders:

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		005245A750FC8986036036FD /* CloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */; };
+		091E4DC8EE9BD6784192E984 /* NativeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */; };
 		2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131087EC06589A88E3B4C703 /* SideleafBrand.swift */; };
 		4D1B980C33ACA120DE0A0F99 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA06851AEA7427D056BFBDFE /* Assets.xcassets */; };
 		59701EC264B88D824A692109 /* Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB42A03498ECDFBEE55A4B2C /* Anchors.swift */; };
@@ -14,6 +16,10 @@
 		972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */; };
 		9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5931F8401B42ACD8274282E9 /* AnchorTests.swift */; };
 		A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */; };
+		A82C458A04E7156B273CCFC7 /* CloudDocumentBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */; };
+		D0B3FD18DD419F3B0CE7ADDE /* LiveTranscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */; };
+		D5A546926BEAE1078AB59F8B /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */; };
+		E594314533D2B68640F694FC /* NotebookSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,11 +37,17 @@
 		2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePaper.swift; sourceTree = "<group>"; };
 		3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Sideleaf.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5931F8401B42ACD8274282E9 /* AnchorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorTests.swift; sourceTree = "<group>"; };
+		6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAPI.swift; sourceTree = "<group>"; };
+		9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDocumentBridgeTests.swift; sourceTree = "<group>"; };
 		AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SideleafTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookSync.swift; sourceTree = "<group>"; };
+		CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
 		D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookApp.swift; sourceTree = "<group>"; };
+		D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudModels.swift; sourceTree = "<group>"; };
 		DA06851AEA7427D056BFBDFE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DB42A03498ECDFBEE55A4B2C /* Anchors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Anchors.swift; sourceTree = "<group>"; };
 		DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceReadiness.swift; sourceTree = "<group>"; };
+		E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscription.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -53,8 +65,13 @@
 			children = (
 				DB42A03498ECDFBEE55A4B2C /* Anchors.swift */,
 				DA06851AEA7427D056BFBDFE /* Assets.xcassets */,
+				D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */,
+				CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */,
+				E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */,
+				6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */,
 				2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */,
 				D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */,
+				B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */,
 				DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */,
 				131087EC06589A88E3B4C703 /* SideleafBrand.swift */,
 			);
@@ -74,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				5931F8401B42ACD8274282E9 /* AnchorTests.swift */,
+				9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -173,8 +191,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				59701EC264B88D824A692109 /* Anchors.swift in Sources */,
+				005245A750FC8986036036FD /* CloudModels.swift in Sources */,
+				D5A546926BEAE1078AB59F8B /* KeychainSessionStore.swift in Sources */,
+				D0B3FD18DD419F3B0CE7ADDE /* LiveTranscription.swift in Sources */,
+				091E4DC8EE9BD6784192E984 /* NativeAPI.swift in Sources */,
 				972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */,
 				A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */,
+				E594314533D2B68640F694FC /* NotebookSync.swift in Sources */,
 				65298393AF000032E51890FC /* OnDeviceReadiness.swift in Sources */,
 				2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */,
 			);
@@ -185,6 +208,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */,
+				A82C458A04E7156B273CCFC7 /* CloudDocumentBridgeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -204,10 +228,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Live in-person transcription after you confirm participant consent. Audio is not saved.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -370,10 +396,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Live in-person transcription after you confirm participant consent. Audio is not saved.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

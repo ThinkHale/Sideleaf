@@ -2,12 +2,14 @@ import SwiftUI
 import PencilKit
 import UIKit
 
+enum NativePaperChange: Equatable { case text, ink, annotation }
+
 struct NativePaper: UIViewRepresentable {
     var page: LocalPage
     var tool: NotebookTool
     var undoSignal: Int
     var redoSignal: Int
-    var saved: () -> Void
+    var saved: (NativePaperChange) -> Void
 
     func makeUIView(context: Context) -> PaperView {
         let view = PaperView()
@@ -57,7 +59,7 @@ struct NativePaper: UIViewRepresentable {
             parent.page.text = textView.text
             parent.page.textRevision += 1
             parent.page.annotations = parent.page.annotations.map { var mark = $0; mark.anchor = mark.anchor.remapped(to: textView.text, revision: parent.page.textRevision); return mark }
-            parent.page.updatedAt = Date(); parent.saved()
+            parent.page.updatedAt = Date(); parent.saved(.text)
         }
         func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
             let bytes = canvasView.drawing.dataRepresentation()
@@ -65,7 +67,7 @@ struct NativePaper: UIViewRepresentable {
             parent.page.ink = bytes
             // Portable visual artifact only. Native PKDrawing remains editable.
             parent.page.inkPreview = canvasView.drawing.image(from: canvasView.bounds, scale: 1).pngData()
-            parent.page.updatedAt = Date(); parent.saved()
+            parent.page.updatedAt = Date(); parent.saved(.ink)
         }
         func markWords(in view: PaperView, polygon: [CGPoint]) {
             guard polygon.count >= 6, let first = polygon.first, let last = polygon.last, hypot(first.x - last.x, first.y - last.y) <= 35 else { return }
@@ -89,7 +91,7 @@ struct NativePaper: UIViewRepresentable {
             for range in ranges where !marks.contains(where: { $0.anchor.resolved && $0.anchor.start == range.location && $0.anchor.end == NSMaxRange(range) }) {
                 marks.append(NativeAnnotation(anchor: .make(blockId: parent.page.id, revision: parent.page.textRevision, text: text, range: range)))
             }
-            parent.page.annotations = marks; parent.saved(); view.refreshHighlights(marks)
+            parent.page.annotations = marks; parent.saved(.annotation); view.refreshHighlights(marks)
         }
     }
 }

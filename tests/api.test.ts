@@ -1,6 +1,8 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { openDatabase } from '../server/database';
 import { createApp } from '../server/app';
+import { pages } from '../server/schema';
 import { emptyDocument } from '../shared/domain';
 const origin = 'http://127.0.0.1:5173';
 let storage: Awaited<ReturnType<typeof openDatabase>>;
@@ -155,6 +157,119 @@ describe.sequential('authenticated notebook API', () => {
         })
       ).status,
     ).toBe(400);
+  });
+  it('round-trips locked transcript and AI blocks without allowing provenance edits', async () => {
+    const protectedPageId = crypto.randomUUID();
+    const transcriptId = crypto.randomUUID();
+    const aiId = crypto.randomUUID();
+    const [ownedPage] = await storage.db
+      .select({ userId: pages.userId })
+      .from(pages)
+      .where(eq(pages.id, pageId));
+    expect(ownedPage).toBeTruthy();
+
+    const trusted = structuredClone(doc);
+    trusted.blocks.push(
+      {
+        id: transcriptId,
+        text: 'Trusted transcript',
+        kind: 'paragraph',
+        source: 'transcript',
+        revision: 1,
+        excluded: false,
+      },
+      {
+        id: aiId,
+        text: 'Trusted summary',
+        kind: 'paragraph',
+        source: 'ai',
+        revision: 1,
+        excluded: false,
+      },
+    );
+    await storage.db.insert(pages).values({
+      id: protectedPageId,
+      userId: ownedPage.userId,
+      notebookId,
+      title: 'Protected provenance',
+      document: trusted,
+      version: 1,
+    });
+
+    const personalEdit = structuredClone(trusted);
+    personalEdit.blocks[1].text = 'Edited on iPhone';
+    personalEdit.blocks[1].revision += 1;
+    const protectedMutationId = crypto.randomUUID();
+    const accepted = await request(`/pages/${protectedPageId}`, alice, 'PUT', {
+      title: 'Protected provenance',
+      notebookId,
+      document: personalEdit,
+      baseVersion: 1,
+      mutationId: protectedMutationId,
+    });
+    expect(accepted.status, await accepted.clone().text()).toBe(200);
+    expect((await accepted.json()).version).toBe(2);
+
+    const retry = await request(`/pages/${protectedPageId}`, alice, 'PUT', {
+      title: 'Protected provenance',
+      notebookId,
+      document: personalEdit,
+      baseVersion: 1,
+      mutationId: protectedMutationId,
+    });
+    expect(retry.status, await retry.clone().text()).toBe(200);
+    expect((await retry.json()).version).toBe(2);
+
+    const attacks: [string, (document: typeof personalEdit) => void][] = [
+      [
+        'addition',
+        (document) => {
+          document.blocks.push({
+            id: crypto.randomUUID(),
+            text: 'Forged summary',
+            kind: 'paragraph',
+            source: 'ai',
+            revision: 1,
+            excluded: false,
+          });
+        },
+      ],
+      [
+        'modification',
+        (document) => {
+          document.blocks.find((block) => block.id === transcriptId)!.text = 'Altered transcript';
+        },
+      ],
+      [
+        'removal',
+        (document) => {
+          document.blocks = document.blocks.filter((block) => block.id !== transcriptId);
+        },
+      ],
+      [
+        'source laundering',
+        (document) => {
+          document.blocks.find((block) => block.id === transcriptId)!.source = 'personal';
+        },
+      ],
+    ];
+    for (const [name, mutate] of attacks) {
+      const forged = structuredClone(personalEdit);
+      mutate(forged);
+      const response = await request(`/pages/${protectedPageId}`, alice, 'PUT', {
+        title: 'Protected provenance',
+        notebookId,
+        document: forged,
+        baseVersion: 2,
+        mutationId: crypto.randomUUID(),
+      });
+      expect(response.status, name).toBe(422);
+    }
+
+    const preserved = await (await request(`/pages/${protectedPageId}`)).json();
+    expect(preserved.version).toBe(2);
+    expect(preserved.document).toEqual(personalEdit);
+    expect((await request(`/pages/${protectedPageId}`, alice, 'DELETE')).status).toBe(200);
   });
   it('fails capture honestly and preserves notes', async () => {
     expect((await request('/capture/start', alice, 'POST', {})).status).toBe(503);

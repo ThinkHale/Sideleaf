@@ -1,6 +1,6 @@
 # Privacy and audio handling
 
-Reviewed September 7, 2026. This document describes the implemented browser capture path, the provider's published data controls and the remaining device/operational checks. The hosted browser flow passed a test with synthetic microphone input and real OpenAI transcription. See [live capture setup](live-capture.md) for the connection and supervision design and [status](status.md) for the verification scope.
+Reviewed September 8, 2026. This document describes the implemented browser capture path, native on-device transcription, the provider's published data controls and the remaining device/operational checks. The hosted browser flow passed a test with synthetic microphone input and real OpenAI transcription. Native build `4` compiles and archives unsigned, while physical-device microphone behavior remains unverified. See [live capture setup](live-capture.md) for the connection and supervision design and [status](status.md) for the verification scope.
 
 ## Product direction
 
@@ -30,7 +30,9 @@ Sideleaf does not request Realtime tracing or send note preparation into the tra
 
 ## Stored text, controls and deletion
 
-Sideleaf stores notebook text, preparation, annotation metadata, editable web ink points, page history, saved transcript segments, session timing and usage totals. Stripe billing stores provider identifiers and subscription state separately; it does not store card details in Sideleaf. Native source stores text, PencilKit drawing data and PNG previews. Native capture and synchronization remain unfinished.
+Sideleaf stores notebook text, preparation, annotation metadata, editable web ink points, page history, saved transcript segments, session timing and usage totals. Stripe billing stores provider identifiers and subscription state separately; it does not store card details in Sideleaf. Native storage includes text, annotation metadata, saved on-device transcript text, PencilKit drawing data and PNG previews. Native synchronization is implemented for typed text, semantic marks and saved transcript text; PencilKit ink remains device-only.
+
+Native transcription requires an explicit consent confirmation and microphone/speech permission. It processes bounded microphone buffers with Apple's on-device speech APIs, creates no audio file and sends no microphone audio to Sideleaf, Vercel, Supabase or OpenAI. Only text the user chooses to add to a page can enter the ordinary synchronization path. This compile/archive evidence does not establish physical-device permission, interruption, model-availability or microphone-release behavior.
 
 The live transcript panel provides a transcript text export. Full account export includes saved transcripts as well as notes and versions. Ordinary page-document exports do not automatically merge the separate meeting transcript. Exclusion flags on ordinary note blocks do not redact or delete transcript records.
 
@@ -44,6 +46,8 @@ The start notice asks the user to inform participants and obtain required permis
 
 The private Supabase schema is accessed by the authenticated Sideleaf API. The browser does not receive database credentials. Server errors omit request bodies, SQL values, stack traces, credentials and note/transcript content. Better Auth logging is disabled, and no analytics or error-reporting SDK is installed. Reverse proxies, traces, crash reports and provider dashboards must not be configured to collect audio or note bodies.
 
-Local development data is outside the OneDrive repository. IndexedDB uses account namespaces for offline manual notes and recovery drafts; it is not application-encrypted. Signing out clears the account's page and recovery cache. An offline identity never grants API access. The service worker does not cache API responses or audio.
+Local development data is outside the OneDrive repository. IndexedDB uses account namespaces for offline manual notes and recovery drafts; it is not application-encrypted. Browser sign-out clears that account's page and recovery cache. On native, the bearer and cached identity are stored as one session state in device-only Keychain records and cleared together on sign-out or invalidation. The cached identity can reopen only the matching account-scoped local pages during a cold offline launch; it never grants API access. The service worker does not cache API responses or audio.
 
-Backups, infrastructure snapshots, device backups and filesystem recovery can retain earlier data independently of active-record deletion. Sideleaf does not promise immediate backup erasure. Production operations must define retention windows, restoration access and expiry for those copies. Certificate-verified database TLS and least-privilege runtime access are implemented; native Keychain session storage and native cross-device operation still require the Mac/Xcode work.
+Backups, infrastructure snapshots, device backups and filesystem recovery can retain earlier data independently of active-record deletion. Sideleaf does not promise immediate backup erasure. Production operations must define retention windows, restoration access and expiry for those copies. Certificate-verified database TLS, least-privilege runtime access and native device-only Keychain session storage are implemented. Native cross-device operation still requires hosted deployment and physical-device validation.
+
+The native archive declares `ITSAppUsesNonExemptEncryption = false` because this build relies on operating-system HTTPS and Keychain services rather than app-provided non-exempt cryptography. That export metadata does not replace legal/compliance review and must be revisited if encryption behavior or dependencies change.

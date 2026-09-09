@@ -1,6 +1,6 @@
 # Acceptance tests and evidence
 
-The September 7, 2026 implementation and hosted verification results are recorded in [status.md](status.md), including the 106-test suite, browser/focus checks, built-PWA check, production Supabase integration and hosted real OpenAI transcription with synthetic microphone input. The dated results below preserve the earlier baseline and its narrower scope.
+The September 7-8, 2026 implementation and verification results are recorded in [status.md](status.md), including the current 108-test Vitest suite, earlier browser/focus and built-PWA checks, production Supabase integration, hosted real OpenAI transcription with synthetic microphone input, and build-4 native compile/archive evidence. The dated results below preserve the earlier baseline and its narrower scope.
 
 Recorded 2026-09-06 on Windows, Node 24.18.0. No test results below represent a Mac simulator, physical iPhone or iPad, Apple Pencil, live microphone provider, real billing account, or production database run.
 
@@ -57,7 +57,7 @@ The in-app browser was available and used first for visible inspection once the 
 
 ## Not tested or not implemented
 
-Real prepare/start/pause/resume/end/reopen transcription; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; server usage leases and billing webhooks; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad and live Pencil hardware; external PostgreSQL TLS; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
+Real prepare/start/pause/resume/end/reopen cloud transcription in the earlier dated baseline; live notes/keywords/coaching; stale text-model outputs; summary grounding and summary editing; captured interruption gaps; payments/restore purchases; native XCTest execution and runtime UI; physical iPhone/iPad microphone, on-device transcription and live Pencil hardware; signed App Store archive/upload; build-4 hosted deployment; Docker build; installed-PWA behavior on Safari/iPadOS; browser storage exhaustion; very large notebooks; deployment/backup retention.
 
 These are acceptance gaps, not passes. The exact next implementation steps are in `status.md`.
 
@@ -80,7 +80,7 @@ The concept-to-render comparison, copy differences, and intentional design devia
 - SHA-256 comparison confirmed that all seven original files now preserved in `public/brand` match the supplied PNGs byte for byte.
 - The supplied full-bleed dark square is the canonical platform-icon source. The light square is retained as marketing artwork but is not used as an OS icon because its rounded tile and shadow are already baked in.
 - Generated favicon, Apple touch, PWA, and native PNGs have their declared dimensions, sRGB color, and no alpha channel. The PWA manifest and service worker reference the generated web sizes.
-- `npm run check` passed the production web build and all 106 unit/integration tests. No React or CSS changed in this update, so the 2026-09-07 interface screenshots remain the relevant rendered logo review.
+- The latest `npm run check` passed the production web build and all 108 Vitest tests across 10 files. No React or CSS changed in the platform-icon update, so the 2026-09-07 interface screenshots remain the relevant rendered logo review.
 - Xcode 26.6 passed the iPad simulator build and build-for-testing. An unsigned generic iOS Release archive passed, contains marketing version `1.0`, build `2`, bundle ID `com.thinkhale.sideleaf`, `UIDeviceFamily` value `2`, and a compiled 1024 x 1024 `AppIcon` rendition.
 - The local Playwright workflows did not execute on this Mac because their pinned Chromium headless-shell binary is not installed. The in-app browser also could not initialize in this agent environment, so installed PWA appearance and masked Home Screen appearance remain manual visual checks.
 
@@ -90,3 +90,14 @@ The concept-to-render comparison, copy differences, and intentional design devia
 - An unsigned generic iOS Release archive passed. Its app bundle contains marketing version `1.0`, build `3`, bundle ID `com.thinkhale.sideleaf`, minimum OS `26.0`, `UIDeviceFamily` values `[1, 2]`, and compiled iPhone and iPad app icons.
 - The archive declares portrait orientation for iPhone and portrait, upside-down portrait, and both landscape orientations for iPad. Its only required device capability is `arm64`.
 - Compact-width navigation, controls, branding, sheets, and paper sizing were adapted for iPhone. Phone ink accepts touch input; iPad keeps Pencil-only ink so fingers continue to scroll.
+
+### Native authentication, synchronization and on-device transcription source, build 4
+
+- Build `4` source adds native email/password sign-in through the Sideleaf backend. The signed Better Auth bearer is stored in Keychain and used for the same owner-authorized notebook/page API; no Supabase or provider credential is embedded in the app.
+- Typed text and semantic marks use the existing base-version and stable-mutation-ID revision protocol. The adapter preserves unknown remote blocks, preparation and web ink, while a stale 409 retains both sides for recovery. PencilKit freehand ink remains device-only.
+- Guest pages are not silently uploaded after sign-in. They require an explicit adoption action into the current account, and cached pages remain account-scoped.
+- iOS/iPadOS 26 live transcription requires participant consent, keeps bounded microphone buffers in memory, saves no audio file and uploads no audio. Saved transcript text is ordinary personal content, not server-confirmed provider transcript provenance.
+- XcodeGen regenerated the checked-in project. Build-for-testing passed for shutdown iPhone 17 Pro and iPad Pro simulator destinations, compiling both the Sideleaf app and XCTest products. No simulator was booted, so XCTest did not execute and no simulator UI result is claimed.
+- An unsigned generic iOS Release archive passed. Its `Info.plist` reports bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, build `4`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, and iPhone/iPad AppIcon entries.
+- The archive contains Boolean `ITSAppUsesNonExemptEncryption = false`, matching current OS-provided HTTPS and Keychain-only encryption use. Dependency or feature changes that add encryption require a new export-compliance review.
+- Physical-device sign-in, synchronization, microphone, interruption, transcription, touch/Pencil and signed TestFlight installation remain unverified. The build-4 API changes have not yet been verified in the hosted deployment.
