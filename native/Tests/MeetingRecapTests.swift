@@ -78,7 +78,7 @@ final class MeetingRecapTests: XCTestCase {
             dueDate: due
         )
         let annotation = draft([cue]).annotations.first
-        XCTAssertTrue(annotation?.question.hasPrefix("Send the proposal — due ") == true)
+        XCTAssertTrue(annotation?.question.hasPrefix("Send the proposal (due ") == true)
     }
 
     func testAnEmptyMeetingStillSaysSo() {

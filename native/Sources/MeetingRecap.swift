@@ -50,7 +50,7 @@ enum MeetingRecapBuilder {
         let duration = max(0, endedAt.timeIntervalSince(startedAt))
 
         builder.line(
-            "\(plan.displayTitle) — \(plan.kind.title) · \(durationText(duration)) · "
+            "\(plan.displayTitle) · \(plan.kind.title) · \(durationText(duration)) · "
                 + startedAt.formatted(date: .abbreviated, time: .shortened)
         )
         let goal = plan.goal.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,7 +103,7 @@ enum MeetingRecapBuilder {
     /// The line a bullet shows, including a resolved due date when there is one.
     static func bulletText(for cue: MeetingCue) -> String {
         guard let due = cue.dueDate else { return cue.prompt }
-        return "\(cue.prompt) — due \(due.formatted(date: .abbreviated, time: .shortened))"
+        return "\(cue.prompt) (due \(due.formatted(date: .abbreviated, time: .shortened)))"
     }
 
     private static func section(

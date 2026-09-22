@@ -155,7 +155,7 @@ final class MeetingIntelligenceTests: XCTestCase {
         )
         XCTAssertEqual(
             cues.first { $0.kind == .figure }?.prompt,
-            "Can I read that back — 62 percent?"
+            "Can I read that back: 62 percent?"
         )
     }
 

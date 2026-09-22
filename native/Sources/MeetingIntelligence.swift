@@ -413,7 +413,7 @@ struct MeetingCueEngine: Sendable {
         if let figure = figurePhrase(in: sentence.text, excluding: spoken?.phrase) {
             return make(
                 kind: .figure,
-                prompt: "Can I read that back — \(figure)?",
+                prompt: "Can I read that back: \(figure)?",
                 quote: sentence.text,
                 elapsed: elapsed,
                 now: now,
