@@ -95,6 +95,69 @@ final class MeetingRecapTests: XCTestCase {
         XCTAssertEqual(result.suggestedTitle, "Pilot review")
     }
 
+    // MARK: - What the conversation settled
+
+    func testAnsweredQuestionsLeaveTheSendList() {
+        var answered = MeetingCue(
+            kind: .unanswered,
+            prompt: "Who owns the migration?",
+            quote: "Who owns the migration?",
+            offset: 10
+        )
+        answered.state = .resolved
+        answered.resolution = "Answered: Priya owns it."
+        let open = MeetingCue(kind: .ask, prompt: "When is that due?", quote: "Soon.", offset: 20)
+        let result = draft([answered, open])
+        let text = result.text
+        XCTAssertTrue(text.contains(MeetingRecapBuilder.answeredHeading))
+        XCTAssertTrue(text.contains("Answered: Priya owns it."))
+        let sendList = text.components(separatedBy: MeetingRecapBuilder.answeredHeading)[0]
+        XCTAssertTrue(sendList.contains("When is that due?"))
+        XCTAssertFalse(sendList.contains("Who owns the migration?"))
+    }
+
+    func testReversedDecisionsAreNotListedAsDecisions() {
+        var reversed = MeetingCue(
+            kind: .decision,
+            prompt: "Run the pilot in Leeds",
+            quote: "We decided to run the pilot in Leeds.",
+            offset: 10
+        )
+        reversed.state = .resolved
+        reversed.resolution = "Changed later: Actually let us run it in Manchester."
+        let result = draft([reversed])
+        XCTAssertTrue(result.text.contains(MeetingRecapBuilder.reversedHeading))
+        XCTAssertFalse(result.text.contains(MeetingRecapBuilder.decidedHeading))
+        XCTAssertEqual(result.annotations.first?.state, "addressed")
+    }
+
+    func testPointsCoveredLaterAreNotListedAsGaps() {
+        var covered = MeetingCue(kind: .coverage, prompt: "Not covered: Pricing.", offset: 30)
+        covered.state = .resolved
+        covered.resolution = "Covered: Pricing is agreed."
+        let result = draft([covered])
+        XCTAssertFalse(result.text.contains(MeetingRecapBuilder.notCoveredHeading))
+        XCTAssertTrue(result.annotations.isEmpty)
+    }
+
+    func testAResolvedItemStillAnchorsToTheWordsThatWereSaid() {
+        var answered = MeetingCue(
+            kind: .clarify,
+            prompt: "Can we put a date on \"soon\"?",
+            quote: "We will get to it soon.",
+            offset: 10
+        )
+        answered.state = .resolved
+        answered.resolution = "Answered: Friday"
+        let result = draft([answered])
+        let text = result.text as NSString
+        guard let annotation = result.annotations.first else {
+            return XCTFail("expected one mark")
+        }
+        XCTAssertEqual(text.substring(with: annotation.range), annotation.quote)
+        XCTAssertTrue(result.text.contains("Answered: Friday"))
+    }
+
     func testDurationReadsTheWayAPersonWouldSayIt() {
         XCTAssertEqual(MeetingRecapBuilder.durationText(20), "under a minute")
         XCTAssertEqual(MeetingRecapBuilder.durationText(600), "10 min")

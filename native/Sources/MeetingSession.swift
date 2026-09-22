@@ -38,6 +38,9 @@ final class MeetingSession {
     let transcription: LiveTranscription
 
     @ObservationIgnored private var engine = MeetingCueEngine()
+    @ObservationIgnored private var preferences = MeetingPreferencesStore.load()
+    /// Kinds Sideleaf has stopped offering, and why the home screen says so.
+    private(set) var mutedKinds: [MeetingCue.Kind] = []
     @ObservationIgnored private var pulseTask: Task<Void, Never>?
     @ObservationIgnored private var lastWidgetPublish = Date.distantPast
     @ObservationIgnored private var publish: (MeetingSnapshot) -> Void
@@ -54,6 +57,8 @@ final class MeetingSession {
     ) {
         self.transcription = transcription
         self.publish = publish
+        engine = MeetingCueEngine(mutedKinds: preferences.mutedKinds)
+        mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
     }
 
     /// Lets the app send every snapshot on to the Apple Watch without the
@@ -99,6 +104,11 @@ final class MeetingSession {
             }
     }
 
+    /// Suggestions the conversation itself answered while the person listened.
+    var answeredDuringMeeting: [MeetingCue] {
+        cues.filter { $0.state == .resolved }.sorted { $0.offset > $1.offset }
+    }
+
     /// Things to remember, newest first.
     var captured: [MeetingCue] {
         cues.filter { $0.role == .remember && $0.state != .dismissed }
@@ -116,7 +126,9 @@ final class MeetingSession {
         guard !isActive, phase != .ended else { return }
         self.plan = plan
         attachedPageID = pageID
-        engine = MeetingCueEngine(plan: plan)
+        preferences = MeetingPreferencesStore.load()
+        engine = MeetingCueEngine(plan: plan, mutedKinds: preferences.mutedKinds)
+        mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
         cues = []
         latestCueID = nil
         interruptionNotice = nil
@@ -173,7 +185,7 @@ final class MeetingSession {
             elapsed: ended.timeIntervalSince(startedAt ?? ended),
             now: ended
         )
-        append(closing)
+        absorb(closing)
         phase = .ended
         publishSnapshot(force: true)
     }
@@ -190,7 +202,9 @@ final class MeetingSession {
         latestCueID = nil
         interruptionNotice = nil
         startFailure = nil
-        engine = MeetingCueEngine()
+        preferences = MeetingPreferencesStore.load()
+        engine = MeetingCueEngine(mutedKinds: preferences.mutedKinds)
+        mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
         transcription.resetTranscript()
         publishSnapshot(force: true)
         MeetingSharedStore.clearSnapshot()
@@ -199,17 +213,49 @@ final class MeetingSession {
 
     // MARK: - Cue actions
 
-    func markAsked(_ cue: MeetingCue) { apply(cue) { $0.state = .asked } }
-    func keep(_ cue: MeetingCue) { apply(cue) { $0.state = .kept } }
-    func dismiss(_ cue: MeetingCue) { apply(cue) { $0.state = .dismissed } }
-    func reopen(_ cue: MeetingCue) { apply(cue) { $0.state = .open } }
+    func markAsked(_ cue: MeetingCue) {
+        apply(cue, feedback: .asked) { $0.state = .asked }
+    }
+
+    func keep(_ cue: MeetingCue) {
+        apply(cue, feedback: .kept) { $0.state = .kept }
+    }
+
+    func dismiss(_ cue: MeetingCue) {
+        apply(cue, feedback: .dismissed) { $0.state = .dismissed }
+    }
+
+    /// Puts a suggestion back, including one Sideleaf decided the room had
+    /// already answered.
+    func reopen(_ cue: MeetingCue) {
+        apply(cue, feedback: nil) {
+            $0.state = .open
+            $0.resolution = nil
+        }
+    }
 
     func edit(_ cue: MeetingCue, prompt: String) {
-        apply(cue) { $0.prompt = prompt }
+        apply(cue, feedback: nil) { $0.prompt = prompt }
     }
 
     func setDueDate(_ date: Date?, for cue: MeetingCue) {
-        apply(cue) { $0.dueDate = date }
+        apply(cue, feedback: nil) { $0.dueDate = date }
+    }
+
+    /// Starts offering a kind again after Sideleaf stopped.
+    func unmute(_ kind: MeetingCue.Kind) {
+        engine.unmute(kind)
+        preferences.unmute(kind)
+        MeetingPreferencesStore.save(preferences)
+        mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
+    }
+
+    /// Clears everything Sideleaf has inferred from past dismissals.
+    func forgetSuggestionHistory() {
+        preferences.forgetEverything()
+        MeetingPreferencesStore.save(preferences)
+        for kind in mutedKinds { engine.unmute(kind) }
+        mutedKinds = []
     }
 
     /// Keeps a moment the person noticed before Sideleaf did.
@@ -264,13 +310,13 @@ final class MeetingSession {
         guard isActive else { return }
         if transcription.isListening, phase == .preparing { phase = .live }
         noticeInterruption()
-        let fresh = engine.ingest(
+        let changes = engine.ingest(
             transcript: transcription.transcript,
             elapsed: elapsed,
             now: Date()
         )
-        append(fresh)
-        publishSnapshot(force: !fresh.isEmpty)
+        absorb(changes)
+        publishSnapshot(force: !changes.isEmpty)
     }
 
     private func noticeInterruption() {
@@ -286,11 +332,18 @@ final class MeetingSession {
         }
     }
 
-    private func append(_ fresh: [MeetingCue]) {
-        guard !fresh.isEmpty else { return }
-        cues.append(contentsOf: fresh)
-        latestCueID = fresh.last?.id
-        if let newest = fresh.first(where: { $0.role == .ask }) ?? fresh.last {
+    /// Takes what the engine now offers, and what it has changed its mind
+    /// about. A revision is silent: nothing new is being asked of the person.
+    private func absorb(_ changes: MeetingCueChanges) {
+        for revision in changes.revised {
+            guard let index = cues.firstIndex(where: { $0.id == revision.id }) else { continue }
+            cues[index] = revision
+            if revision.state != .open, latestCueID == revision.id { latestCueID = nil }
+        }
+        guard !changes.created.isEmpty else { return }
+        cues.append(contentsOf: changes.created)
+        latestCueID = changes.created.last?.id
+        if let newest = changes.created.first(where: { $0.role == .ask }) ?? changes.created.last {
             announce(newest)
         }
     }
@@ -301,10 +354,21 @@ final class MeetingSession {
         generator.impactOccurred()
     }
 
-    private func apply(_ cue: MeetingCue, _ change: (inout MeetingCue) -> Void) {
+    private func apply(
+        _ cue: MeetingCue,
+        feedback: MeetingCue.State?,
+        _ change: (inout MeetingCue) -> Void
+    ) {
         guard let index = cues.firstIndex(where: { $0.id == cue.id }) else { return }
         change(&cues[index])
         engine.update(cues[index])
+        if let feedback {
+            let verdict = MeetingCueFeedback(kind: cues[index].kind, action: feedback)
+            engine.record(verdict)
+            preferences.record(verdict)
+            MeetingPreferencesStore.save(preferences)
+            mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
+        }
         if cues[index].state != .open, latestCueID == cue.id { latestCueID = nil }
         publishSnapshot(force: true)
     }

@@ -51,6 +51,7 @@ struct MeetingHomeView: View {
                 kindPicker
                 startControls
                 plannerLink
+                mutedKinds
                 recents
                 assurance
             }
@@ -184,6 +185,39 @@ struct MeetingHomeView: View {
         .buttonStyle(.bordered)
         .tint(.sideleafOlive)
         .accessibilityHint("Set what you want out of this conversation and the points to cover.")
+    }
+
+    @ViewBuilder
+    private var mutedKinds: some View {
+        if !session.mutedKinds.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Sideleaf stopped suggesting")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(session.mutedKinds) { kind in
+                    HStack {
+                        Label(kind.label, systemImage: kind.symbol)
+                            .font(.callout)
+                            .foregroundStyle(Color.sideleafInk)
+                        Spacer()
+                        Button("Turn back on") { session.unmute(kind) }
+                            .font(.footnote)
+                            .buttonStyle(.bordered)
+                            .tint(.sideleafOlive)
+                    }
+                }
+                Text("You dismissed these often enough that Sideleaf stopped offering them. It counts what you keep and what you dismiss; nothing else.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Forget what Sideleaf learned") { session.forgetSuggestionHistory() }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.sideleafOlive)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.sideleafOlive.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
     }
 
     @ViewBuilder
@@ -399,6 +433,7 @@ struct LiveMeetingView: View {
                 }
                 askRail
                 capturedList
+                answeredList
                 coverage
                 quickActions
                 transcriptPanel
@@ -485,6 +520,28 @@ struct LiveMeetingView: View {
                     CueCardView(cue: cue, isPrimary: false)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var answeredList: some View {
+        let answered = session.answeredDuringMeeting
+        if !answered.isEmpty {
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(answered) { cue in
+                        CueCardView(cue: cue, isPrimary: false)
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Label(
+                    "Answered or changed while you listened (\(answered.count))",
+                    systemImage: "checkmark.circle"
+                )
+                .font(.footnote.weight(.semibold))
+            }
+            .tint(.sideleafOlive)
         }
     }
 
@@ -617,8 +674,19 @@ struct CueCardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
+            if let note = cue.resolutionNote {
+                Label(note, systemImage: "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(Color.sideleafOlive)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 8) {
-                if cue.role == .ask {
+                if cue.state == .resolved {
+                    Button(cue.role == .ask ? "Ask anyway" : "Keep it anyway") {
+                        session.reopen(cue)
+                    }
+                    .buttonStyle(.bordered)
+                } else if cue.role == .ask {
                     Button("Asked") { session.markAsked(cue) }
                         .buttonStyle(.borderedProminent)
                         .tint(.sideleafOlive)

@@ -43,6 +43,7 @@
 		9129FFECDB67EA9FF3236507 /* SideleafWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5FE2DF62D2063F55F185EC0 /* SideleafWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9D5A85F97C8CF492EC6C4BDF /* MeetingRecap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CC354872514957A80A7812 /* MeetingRecap.swift */; };
 		A164BC5E1B2EE6684E129FC8 /* OnDeviceReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */; };
+		A8531C3D8527FC5F458F1284 /* MeetingPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1CAB2B521B9A8D76AD327EE /* MeetingPreferences.swift */; };
 		A932873E1BE0218759135545 /* MeetingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58D0637119C7CB0512800E5 /* MeetingIntents.swift */; };
 		AF74FB7E0888A2ABFBE1ECE2 /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */; };
 		B29E1437BFB2A915E86F557A /* SideleafShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C959F239AE5943177C543F /* SideleafShortcuts.swift */; };
@@ -140,6 +141,7 @@
 		B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceReadiness.swift; sourceTree = "<group>"; };
 		C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingControlWidget.swift; sourceTree = "<group>"; };
 		CBA8825B7843230D62C28EEB /* WatchMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchMessage.swift; sourceTree = "<group>"; };
+		D1CAB2B521B9A8D76AD327EE /* MeetingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPreferences.swift; sourceTree = "<group>"; };
 		D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDocumentBridgeTests.swift; sourceTree = "<group>"; };
 		D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCue.swift; sourceTree = "<group>"; };
 		E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDatesTests.swift; sourceTree = "<group>"; };
@@ -179,6 +181,7 @@
 				E509783D7AD41F888F8A44C4 /* LiveTranscription.swift */,
 				414A4CF78AE261CE3F821E74 /* MeetingDates.swift */,
 				E595E746E987279DFA45CD54 /* MeetingIntelligence.swift */,
+				D1CAB2B521B9A8D76AD327EE /* MeetingPreferences.swift */,
 				38CC354872514957A80A7812 /* MeetingRecap.swift */,
 				735687585A9125635C0FA7C1 /* MeetingRecapView.swift */,
 				70EC784D5560587FF198BAF0 /* MeetingReminders.swift */,
@@ -416,6 +419,7 @@
 				35801BD9C146DB8C5591E04B /* MeetingIntelligence.swift in Sources */,
 				8F2F829A247CBCF8DBD6B46C /* MeetingIntents.swift in Sources */,
 				4366FD5654F227CD54E47843 /* MeetingKind.swift in Sources */,
+				A8531C3D8527FC5F458F1284 /* MeetingPreferences.swift in Sources */,
 				9D5A85F97C8CF492EC6C4BDF /* MeetingRecap.swift in Sources */,
 				37A0A3380C60F8FF8EA34CEB /* MeetingRecapView.swift in Sources */,
 				553F5B31D2FD7EB0FA60E759 /* MeetingReminders.swift in Sources */,

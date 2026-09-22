@@ -39,11 +39,14 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
     /// something to keep.
     enum Role: String, Codable, Sendable { case ask, remember }
 
+
     enum State: String, Codable, Sendable {
         case open
         case asked
         case kept
         case dismissed
+        /// The conversation itself answered this before anyone acted on it.
+        case resolved
     }
 
     var id: UUID
@@ -60,6 +63,10 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
     var state: State
     /// Higher wins when the live view can only show a few cues.
     var priority: Int
+    /// What later speech did to this cue: the answer that closed it, the date
+    /// that was finally named, the decision that replaced it. Always the words
+    /// that caused the change, never a summary of them.
+    var resolution: String?
 
     init(
         id: UUID = UUID(),
@@ -70,7 +77,8 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
         offset: TimeInterval = 0,
         dueDate: Date? = nil,
         state: State = .open,
-        priority: Int = 50
+        priority: Int = 50,
+        resolution: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -81,17 +89,42 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
         self.dueDate = dueDate
         self.state = state
         self.priority = priority
+        self.resolution = resolution
     }
 
-    var role: Role {
-        switch kind {
+    var role: Role { kind.role }
+    var label: String { kind.label }
+    var symbol: String { kind.symbol }
+    /// The web contract's annotation kind used when this cue is saved.
+    var annotationKind: String { kind.annotationKind }
+
+    var isOpen: Bool { state == .open }
+
+    /// Cues the recap should keep unless the person dismissed them.
+    var survivesRecap: Bool { state != .dismissed }
+
+    /// True once nobody needs to do anything about this any more.
+    var isSettled: Bool { state != .open }
+
+    /// The line a card shows under a cue the conversation caught up with.
+    var resolutionNote: String? {
+        guard state == .resolved, let resolution else { return nil }
+        return resolution
+    }
+}
+
+extension MeetingCue.Kind: Identifiable {
+    var id: String { rawValue }
+
+    var role: MeetingCue.Role {
+        switch self {
         case .ask, .unanswered, .clarify, .figure, .term, .risk, .coverage: .ask
         case .commitment, .request, .deadline, .decision, .note: .remember
         }
     }
 
     var label: String {
-        switch kind {
+        switch self {
         case .ask: "Ask"
         case .unanswered: "Unanswered"
         case .clarify: "Pin down"
@@ -108,7 +141,7 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
     }
 
     var symbol: String {
-        switch kind {
+        switch self {
         case .ask: "questionmark.bubble"
         case .unanswered: "questionmark.circle"
         case .clarify: "scope"
@@ -124,20 +157,11 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
         }
     }
 
-    /// The web contract's annotation kind used when this cue is saved.
+    /// The web contract's annotation kind used when a cue of this kind is saved.
     var annotationKind: String {
         switch role {
         case .ask: "follow-up"
-        case .remember: kind == .decision || kind == .note ? "important" : "action"
+        case .remember: self == .decision || self == .note ? "important" : "action"
         }
     }
-
-    var isOpen: Bool { state == .open }
-
-    /// Cues the recap should keep unless the person dismissed them.
-    var survivesRecap: Bool { state != .dismissed }
-}
-
-extension MeetingCue.State {
-    var isResolved: Bool { self == .asked || self == .kept }
 }

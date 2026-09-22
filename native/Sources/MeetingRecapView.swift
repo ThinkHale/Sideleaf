@@ -84,20 +84,42 @@ struct MeetingRecapView: View {
     @ViewBuilder
     private var sections: some View {
         section(
-            "Questions to ask or send",
+            MeetingRecapBuilder.questionsHeading,
             "Nothing was left open.",
-            session.cues.filter { $0.role == .ask && $0.kind != .coverage }
+            session.cues.filter {
+                $0.role == .ask && $0.kind != .coverage && $0.state != .resolved
+            }
         )
         section(
-            "Your next steps",
+            MeetingRecapBuilder.nextStepsHeading,
             nil,
             session.cues.filter {
                 $0.kind == .commitment || $0.kind == .request || $0.kind == .deadline
             }
         )
-        section("Decided", nil, session.cues.filter { $0.kind == .decision })
-        section("Moments you kept", nil, session.cues.filter { $0.kind == .note })
-        section("Not covered", nil, session.cues.filter { $0.kind == .coverage })
+        section(
+            MeetingRecapBuilder.decidedHeading,
+            nil,
+            session.cues.filter { $0.kind == .decision && $0.state != .resolved }
+        )
+        section(MeetingRecapBuilder.markedHeading, nil, session.cues.filter { $0.kind == .note })
+        section(
+            MeetingRecapBuilder.answeredHeading,
+            nil,
+            session.cues.filter {
+                $0.role == .ask && $0.kind != .coverage && $0.state == .resolved
+            }
+        )
+        section(
+            MeetingRecapBuilder.reversedHeading,
+            nil,
+            session.cues.filter { $0.kind == .decision && $0.state == .resolved }
+        )
+        section(
+            MeetingRecapBuilder.notCoveredHeading,
+            nil,
+            session.cues.filter { $0.kind == .coverage && $0.state != .resolved }
+        )
     }
 
     @ViewBuilder
@@ -149,6 +171,17 @@ struct MeetingRecapView: View {
                         Text("Heard: \u{201C}\(cue.quote)\u{201D}")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                    if let note = cue.resolutionNote {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Label(note, systemImage: "checkmark.circle")
+                                .font(.caption)
+                                .foregroundStyle(Color.sideleafOlive)
+                            Button("Still open") { session.reopen(cue) }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
                     }
                     if included, cue.role == .remember {
                         reminderControls(cue)

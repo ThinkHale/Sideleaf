@@ -32,8 +32,10 @@ struct MeetingRecapDraft: Equatable, Sendable {
 /// app links each follow-up back to its source.
 enum MeetingRecapBuilder {
     static let questionsHeading = "Questions to ask or send"
+    static let answeredHeading = "Answered in the meeting"
     static let nextStepsHeading = "Your next steps"
     static let decidedHeading = "Decided"
+    static let reversedHeading = "Reversed later"
     static let markedHeading = "Moments you kept"
     static let notCoveredHeading = "Not covered"
     static let heardPrefix = "Heard: "
@@ -56,23 +58,37 @@ enum MeetingRecapBuilder {
         let goal = plan.goal.trimmingCharacters(in: .whitespacesAndNewlines)
         if !goal.isEmpty { builder.line("Goal: \(goal)") }
 
-        let questions = kept
-            .filter { $0.role == .ask && $0.kind != .coverage }
-            .sorted { $0.offset < $1.offset }
+        // A question the room answered is no longer a question to send, and a
+        // decision that was taken back is not a decision. Both stay in the
+        // recap, under headings that say what actually happened.
+        let asks = kept.filter { $0.role == .ask && $0.kind != .coverage }
+        let questions = asks.filter { $0.state != .resolved }.sorted { $0.offset < $1.offset }
+        let answered = asks.filter { $0.state == .resolved }.sorted { $0.offset < $1.offset }
         let steps = kept
             .filter { $0.kind == .commitment || $0.kind == .request || $0.kind == .deadline }
             .sorted { $0.offset < $1.offset }
-        let decisions = kept.filter { $0.kind == .decision }.sorted { $0.offset < $1.offset }
+        let settledDecisions = kept.filter { $0.kind == .decision }
+        let decisions = settledDecisions
+            .filter { $0.state != .resolved }
+            .sorted { $0.offset < $1.offset }
+        let reversed = settledDecisions
+            .filter { $0.state == .resolved }
+            .sorted { $0.offset < $1.offset }
         let marked = kept.filter { $0.kind == .note }.sorted { $0.offset < $1.offset }
-        let uncovered = kept.filter { $0.kind == .coverage }.sorted { $0.offset < $1.offset }
+        let uncovered = kept
+            .filter { $0.kind == .coverage && $0.state != .resolved }
+            .sorted { $0.offset < $1.offset }
 
         section(questionsHeading, questions, into: &builder)
         section(nextStepsHeading, steps, into: &builder)
         section(decidedHeading, decisions, into: &builder)
         section(markedHeading, marked, into: &builder)
+        section(answeredHeading, answered, into: &builder)
+        section(reversedHeading, reversed, into: &builder)
         section(notCoveredHeading, uncovered, into: &builder)
 
-        if questions.isEmpty, steps.isEmpty, decisions.isEmpty, marked.isEmpty, uncovered.isEmpty {
+        let everything = [questions, steps, decisions, marked, answered, reversed, uncovered]
+        if everything.allSatisfy(\.isEmpty) {
             builder.blank()
             builder.line("Nothing was kept from this meeting.")
         }
@@ -124,6 +140,11 @@ enum MeetingRecapBuilder {
                 anchorRange = builder.line("  \(heard)", highlighting: cue.quote)
                 quote = cue.quote
             }
+            // What later speech did to this, in the words that did it.
+            if let resolution = cue.resolution, !resolution.isEmpty {
+                builder.line("  \(resolution)")
+            }
+            let settled = cue.state == .asked || cue.state == .resolved
             builder.annotations.append(
                 RecapAnnotationDraft(
                     cueID: cue.id,
@@ -131,7 +152,7 @@ enum MeetingRecapBuilder {
                     question: cue.annotationKind == "important" ? "" : bullet,
                     quote: quote,
                     range: anchorRange,
-                    state: cue.state == .asked ? "addressed" : "open"
+                    state: settled ? "addressed" : "open"
                 )
             )
         }

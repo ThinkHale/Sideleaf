@@ -121,6 +121,29 @@ enum TranscriptScanner {
 /// Every cue comes from a written rule matched against the words in the
 /// transcript. There is no model inference here, nothing is sent anywhere, and
 /// each cue keeps the sentence that produced it so the person can judge it.
+/// What one pass over new transcript text did: what it offered, and what it
+/// changed its mind about.
+struct MeetingCueChanges: Equatable, Sendable {
+    var created: [MeetingCue] = []
+    var revised: [MeetingCue] = []
+
+    var isEmpty: Bool { created.isEmpty && revised.isEmpty }
+
+    static func + (left: MeetingCueChanges, right: MeetingCueChanges) -> MeetingCueChanges {
+        MeetingCueChanges(
+            created: left.created + right.created,
+            revised: left.revised + right.revised
+        )
+    }
+}
+
+/// What the person did with a suggestion. Fed straight back into what Sideleaf
+/// offers for the rest of the meeting.
+struct MeetingCueFeedback: Equatable, Sendable {
+    var kind: MeetingCue.Kind
+    var action: MeetingCue.State
+}
+
 struct MeetingCueEngine: Sendable {
     private struct PendingQuestion {
         var text: String
@@ -138,6 +161,22 @@ struct MeetingCueEngine: Sendable {
 
         var threshold: Int { max(1, (keywords.count + 1) / 2) }
         var isCovered: Bool { keywords.isEmpty ? false : matched.count >= threshold }
+    }
+
+    /// What a cue needs to be reconsidered later: where it came from, and what
+    /// it was about.
+    private struct LiveCue {
+        var sentence: Int
+        var elapsed: TimeInterval
+        var keywords: Set<String>
+        /// The acronym, figure or plan point the cue is about, when it has one.
+        var subject: String?
+    }
+
+    /// How later speech changes a cue that is still open.
+    private enum CueRevision {
+        case resolved(String)
+        case dated(Date, String)
     }
 
     /// How long a kind of cue waits before it may fire again.
@@ -162,6 +201,18 @@ struct MeetingCueEngine: Sendable {
     /// How often an uncovered plan point may be raised while listening.
     static let coverageInterval: TimeInterval = 420
     static let cueLimit = 200
+    /// How long a cue stays eligible to be answered by later speech.
+    static let reconcileWindow: TimeInterval = 900
+    /// How many sentences later Sideleaf still looks back at a cue.
+    static let reconcileSentenceWindow = 60
+    /// Two sentences after a cue, a reply counts as being about it even with no
+    /// words in common.
+    static let nearbySentences = 2
+    /// Dismissals of one kind, with nothing kept, before Sideleaf stops
+    /// offering that kind for the rest of the meeting.
+    static let sessionMuteThreshold = 3
+    /// The most a run of dismissals can stretch a kind's cooldown.
+    static let maximumCooldownMultiplier = 4.0
 
     private(set) var cues: [MeetingCue] = []
     private var plan: MeetingPlan
@@ -174,10 +225,20 @@ struct MeetingCueEngine: Sendable {
     private var seenTerms: Set<String> = []
     private var lastCoverageNudge: TimeInterval = 0
     private var calendar: Calendar
+    private var sentenceIndex = 0
+    private var liveCues: [UUID: LiveCue] = [:]
+    private var dismissals: [MeetingCue.Kind: Int] = [:]
+    private var endorsements: [MeetingCue.Kind: Int] = [:]
+    private(set) var mutedKinds: Set<MeetingCue.Kind> = []
 
-    init(plan: MeetingPlan = MeetingPlan(), calendar: Calendar = .current) {
+    init(
+        plan: MeetingPlan = MeetingPlan(),
+        calendar: Calendar = .current,
+        mutedKinds: Set<MeetingCue.Kind> = []
+    ) {
         self.plan = plan
         self.calendar = calendar
+        self.mutedKinds = mutedKinds
         trackers = plan.cleanedPoints.map {
             PlanTracker(text: $0, keywords: MeetingCueEngine.keywords(in: $0))
         }
@@ -193,22 +254,22 @@ struct MeetingCueEngine: Sendable {
         trackers.filter { !$0.isCovered }.map(\.text)
     }
 
-    /// Reads whatever is new in the transcript and returns only the cues this
-    /// call created.
+    /// Reads whatever is new in the transcript: what it now suggests, and what
+    /// the conversation has since answered or changed.
     mutating func ingest(
         transcript: String,
         elapsed: TimeInterval,
         now: Date = Date()
-    ) -> [MeetingCue] {
+    ) -> MeetingCueChanges {
         let scan = TranscriptScanner.scan(transcript, from: consumed)
         consumed = scan.consumed
-        var fresh: [MeetingCue] = []
+        var changes = MeetingCueChanges()
         for sentence in scan.sentences {
-            fresh.append(contentsOf: handle(sentence, elapsed: elapsed, now: now))
+            changes = changes + handle(sentence, elapsed: elapsed, now: now)
         }
-        fresh.append(contentsOf: expirePendingQuestions(elapsed: elapsed, now: now, atClose: false))
-        fresh.append(contentsOf: coverageNudge(elapsed: elapsed, now: now))
-        return fresh
+        changes.created += expirePendingQuestions(elapsed: elapsed, now: now, atClose: false)
+        changes.created += coverageNudge(elapsed: elapsed, now: now)
+        return changes
     }
 
     /// Flushes the last partial sentence and everything still waiting.
@@ -216,14 +277,14 @@ struct MeetingCueEngine: Sendable {
         transcript: String,
         elapsed: TimeInterval,
         now: Date = Date()
-    ) -> [MeetingCue] {
+    ) -> MeetingCueChanges {
         let scan = TranscriptScanner.scan(transcript, from: consumed, flushTail: true)
         consumed = scan.consumed
-        var fresh: [MeetingCue] = []
+        var changes = MeetingCueChanges()
         for sentence in scan.sentences {
-            fresh.append(contentsOf: handle(sentence, elapsed: elapsed, now: now))
+            changes = changes + handle(sentence, elapsed: elapsed, now: now)
         }
-        fresh.append(contentsOf: expirePendingQuestions(elapsed: elapsed, now: now, atClose: true))
+        changes.created += expirePendingQuestions(elapsed: elapsed, now: now, atClose: true)
         for index in trackers.indices where !trackers[index].isCovered && !trackers[index].nudged {
             let point = trackers[index].text
             if let cue = make(
@@ -233,12 +294,13 @@ struct MeetingCueEngine: Sendable {
                 elapsed: elapsed,
                 now: now,
                 priority: 45,
+                subject: point,
                 ignoreCooldown: true
             ) {
-                fresh.append(cue)
+                changes.created.append(cue)
             }
         }
-        return fresh
+        return changes
     }
 
     /// Replaces a cue after the person edited, kept or dismissed it.
@@ -247,19 +309,67 @@ struct MeetingCueEngine: Sendable {
         cues[index] = cue
     }
 
+    /// Takes the person's verdict on a suggestion and changes what comes next.
+    ///
+    /// Dismissals stretch that kind's cooldown and, after enough of them with
+    /// nothing kept, stop the kind for the rest of the meeting. Anything asked
+    /// or kept pulls it straight back.
+    mutating func record(_ feedback: MeetingCueFeedback) {
+        // A note is the person's own, so dismissing one says nothing about
+        // what Sideleaf should suggest.
+        guard feedback.kind != .note else { return }
+        switch feedback.action {
+        case .dismissed:
+            dismissals[feedback.kind, default: 0] += 1
+            if dismissals[feedback.kind, default: 0] >= Self.sessionMuteThreshold,
+               endorsements[feedback.kind, default: 0] == 0
+            {
+                mutedKinds.insert(feedback.kind)
+            }
+        case .asked, .kept:
+            endorsements[feedback.kind, default: 0] += 1
+            mutedKinds.remove(feedback.kind)
+        case .open, .resolved:
+            break
+        }
+    }
+
+    mutating func unmute(_ kind: MeetingCue.Kind) {
+        mutedKinds.remove(kind)
+        dismissals[kind] = 0
+    }
+
+    /// How much a kind's cooldown has been stretched by dismissals so far.
+    func cooldownMultiplier(for kind: MeetingCue.Kind) -> Double {
+        let net = (dismissals[kind] ?? 0) - (endorsements[kind] ?? 0)
+        guard net > 0 else { return 1 }
+        return min(Self.maximumCooldownMultiplier, 1 + Double(net))
+    }
+
     // MARK: - Detection
 
     private mutating func handle(
         _ sentence: TranscriptSentence,
         elapsed: TimeInterval,
         now: Date
-    ) -> [MeetingCue] {
-        trackCoverage(sentence)
-        advancePendingQuestions(with: sentence)
-
+    ) -> MeetingCueChanges {
+        sentenceIndex += 1
         let match = MatchText(sentence.text)
-        var fresh: [MeetingCue] = []
         let spoken = MeetingDates.detect(in: match.matchable, now: now, calendar: calendar)
+        let words = Set(Self.keywords(in: sentence.text))
+        var changes = MeetingCueChanges()
+
+        // Older suggestions get first refusal on new information, so a question
+        // the room has since answered stops being asked.
+        changes.revised += reconcile(
+            sentence,
+            match: match,
+            spoken: spoken,
+            words: words,
+            elapsed: elapsed
+        )
+        changes.revised += trackCoverage(sentence, words: words)
+        advancePendingQuestions(with: sentence)
 
         if sentence.isQuestion, sentence.wordCount >= 4 {
             pendingQuestions.append(
@@ -274,12 +384,116 @@ struct MeetingCueEngine: Sendable {
         }
 
         if let cue = rememberCue(sentence, match: match, spoken: spoken, elapsed: elapsed, now: now) {
-            fresh.append(cue)
+            changes.created.append(cue)
         }
         if let cue = askCue(sentence, match: match, spoken: spoken, elapsed: elapsed, now: now) {
-            fresh.append(cue)
+            changes.created.append(cue)
         }
-        return fresh
+        return changes
+    }
+
+    // MARK: - Second thoughts
+
+    /// Looks back at everything still open and asks whether this sentence
+    /// settles it.
+    ///
+    /// A cue is only ever closed by words that were actually said, and the
+    /// words that closed it are kept on the cue, so the person can disagree.
+    private mutating func reconcile(
+        _ sentence: TranscriptSentence,
+        match: MatchText,
+        spoken: SpokenDate?,
+        words: Set<String>,
+        elapsed: TimeInterval
+    ) -> [MeetingCue] {
+        var revised: [MeetingCue] = []
+        for index in cues.indices where cues[index].state == .open {
+            guard let live = liveCues[cues[index].id] else { continue }
+            guard elapsed - live.elapsed <= Self.reconcileWindow else { continue }
+            let distance = sentenceIndex - live.sentence
+            guard distance > 0, distance <= Self.reconcileSentenceWindow else { continue }
+            let overlap = live.keywords.intersection(words).count
+            let nearby = distance <= Self.nearbySentences
+            guard let change = revision(
+                for: cues[index],
+                subject: live.subject,
+                sentence: sentence,
+                match: match,
+                spoken: spoken,
+                overlap: overlap,
+                nearby: nearby
+            ) else { continue }
+            switch change {
+            case .resolved(let note):
+                cues[index].state = .resolved
+                cues[index].resolution = note
+                // A vague date finally pinned down is still worth a reminder.
+                if let date = spoken?.date, cues[index].dueDate == nil {
+                    cues[index].dueDate = date
+                }
+            case .dated(let date, let phrase):
+                cues[index].dueDate = date
+                cues[index].resolution = "Date named later: \(phrase)"
+            }
+            revised.append(cues[index])
+        }
+        return revised
+    }
+
+    private func revision(
+        for cue: MeetingCue,
+        subject: String?,
+        sentence: TranscriptSentence,
+        match: MatchText,
+        spoken: SpokenDate?,
+        overlap: Int,
+        nearby: Bool
+    ) -> CueRevision? {
+        let related = overlap >= 1 || nearby
+        switch cue.kind {
+        case .clarify:
+            guard related else { return nil }
+            if let spoken, spoken.date != nil {
+                return .resolved("Answered: \(spoken.phrase.sentenceCased)")
+            }
+            if let figure = figurePhrase(in: sentence.text, excluding: spoken?.phrase) {
+                return .resolved("Answered: \(figure)")
+            }
+            return nil
+        case .unanswered, .ask:
+            guard !match.contains(any: Self.nonAnswers) else { return nil }
+            let onTopic = overlap >= 2 && sentence.wordCount >= 8
+            let immediate = nearby && sentence.wordCount >= Self.answerWordCount
+            guard onTopic || immediate else { return nil }
+            return .resolved("Answered: \(Self.shorten(sentence.text))")
+        case .term:
+            guard let subject, sentence.text.contains(subject),
+                  match.contains(any: Self.definitionMarkers)
+            else { return nil }
+            return .resolved("Explained: \(Self.shorten(sentence.text))")
+        case .figure:
+            guard overlap >= 1,
+                  let updated = figurePhrase(in: sentence.text, excluding: spoken?.phrase),
+                  updated != subject
+            else { return nil }
+            return .resolved("Changed to \(updated)")
+        case .risk:
+            guard overlap >= 1, match.contains(any: Self.clearingMarkers) else { return nil }
+            return .resolved("Cleared: \(Self.shorten(sentence.text))")
+        case .decision:
+            guard overlap >= 1, match.contains(any: Self.reversalMarkers) else { return nil }
+            return .resolved("Changed later: \(Self.shorten(sentence.text))")
+        case .commitment, .request, .deadline:
+            guard cue.dueDate == nil, related, let spoken, let date = spoken.date else { return nil }
+            return .dated(date, spoken.phrase.sentenceCased)
+        case .coverage, .note:
+            return nil
+        }
+    }
+
+    static func shorten(_ text: String, limit: Int = 160) -> String {
+        guard text.count > limit else { return text }
+        return String(text.prefix(limit)) + "\u{2026}"
     }
 
     private mutating func rememberCue(
@@ -407,7 +621,8 @@ struct MeetingCueEngine: Sendable {
                 quote: sentence.text,
                 elapsed: elapsed,
                 now: now,
-                priority: 56
+                priority: 56,
+                subject: term
             )
         }
         if let figure = figurePhrase(in: sentence.text, excluding: spoken?.phrase) {
@@ -417,7 +632,8 @@ struct MeetingCueEngine: Sendable {
                 quote: sentence.text,
                 elapsed: elapsed,
                 now: now,
-                priority: 54
+                priority: 54,
+                subject: figure
             )
         }
         if let marker = match.firstMatch(in: Self.quantityHedges) {
@@ -491,15 +707,31 @@ struct MeetingCueEngine: Sendable {
 
     // MARK: - Plan coverage
 
-    private mutating func trackCoverage(_ sentence: TranscriptSentence) {
-        guard !trackers.isEmpty else { return }
-        let words = Set(Self.keywords(in: sentence.text))
-        guard !words.isEmpty else { return }
+    /// Marks plan points as covered, and retires the nudges that asked for them.
+    private mutating func trackCoverage(
+        _ sentence: TranscriptSentence,
+        words: Set<String>
+    ) -> [MeetingCue] {
+        guard !trackers.isEmpty, !words.isEmpty else { return [] }
+        var covered: [String] = []
         for index in trackers.indices where !trackers[index].isCovered {
             for keyword in trackers[index].keywords where words.contains(keyword) {
                 trackers[index].matched.insert(keyword)
             }
+            if trackers[index].isCovered { covered.append(trackers[index].text) }
         }
+        guard !covered.isEmpty else { return [] }
+        var revised: [MeetingCue] = []
+        for index in cues.indices
+        where cues[index].kind == .coverage && cues[index].state == .open {
+            guard let subject = liveCues[cues[index].id]?.subject,
+                  covered.contains(subject)
+            else { continue }
+            cues[index].state = .resolved
+            cues[index].resolution = "Covered: \(Self.shorten(sentence.text))"
+            revised.append(cues[index])
+        }
+        return revised
     }
 
     private mutating func coverageNudge(elapsed: TimeInterval, now: Date) -> [MeetingCue] {
@@ -515,6 +747,7 @@ struct MeetingCueEngine: Sendable {
             elapsed: elapsed,
             now: now,
             priority: 70,
+            subject: trackers[index].text,
             ignoreCooldown: true
         ) else { return [] }
         return [cue]
@@ -530,9 +763,12 @@ struct MeetingCueEngine: Sendable {
         now: Date,
         dueDate: Date? = nil,
         priority: Int,
+        subject: String? = nil,
         ignoreCooldown: Bool = false
     ) -> MeetingCue? {
         guard cues.count < Self.cueLimit else { return nil }
+        // A kind the person has dismissed repeatedly stops asking.
+        guard !mutedKinds.contains(kind) else { return nil }
         let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard text.count > 3 else { return nil }
         let fingerprint = Self.fingerprint(text)
@@ -543,7 +779,7 @@ struct MeetingCueEngine: Sendable {
             quoteFingerprints.insert(quoteKey)
         }
         if !ignoreCooldown, let last = lastEmission[kind] {
-            let cooldown = Self.cooldowns[kind] ?? 60
+            let cooldown = (Self.cooldowns[kind] ?? 60) * cooldownMultiplier(for: kind)
             guard elapsed - last >= cooldown else { return nil }
         }
         promptFingerprints.insert(fingerprint)
@@ -558,6 +794,12 @@ struct MeetingCueEngine: Sendable {
             priority: priority
         )
         cues.append(cue)
+        liveCues[cue.id] = LiveCue(
+            sentence: sentenceIndex,
+            elapsed: elapsed,
+            keywords: Set(Self.keywords(in: quote.isEmpty ? text : quote)),
+            subject: subject
+        )
         return cue
     }
 
@@ -675,6 +917,27 @@ struct MeetingCueEngine: Sendable {
     private static let certaintyHedges = [
         " not sure ", " i guess ", " we'll see ", " kind of ", " sort of ",
         " it depends ", " somehow ", " i think so ", " probably ", " maybe ",
+    ]
+
+    /// Words that explain a term rather than repeat it.
+    private static let definitionMarkers = [
+        " stands for ", " short for ", " means ", " which is ", " that is ",
+        " that's ", " in other words ", " is our ", " is the ",
+    ]
+
+    /// Words that say a blocker went away.
+    private static let clearingMarkers = [
+        " unblocked ", " no longer blocked ", " resolved ", " cleared ", " sorted ",
+        " sorted out ", " fixed ", " taken care of ", " that's done ", " it's done ",
+        " we have it now ",
+    ]
+
+    /// Words that take a decision back.
+    private static let reversalMarkers = [
+        " scratch that ", " on second thought ", " actually let's ", " actually let us ",
+        " actually we ", " actually we're ", " changed our mind ", " let's not ",
+        " let us not ", " instead let's ", " instead let us ", " forget that ",
+        " ignore that ", " we're not going with ", " rather than that ",
     ]
 
     private static let nonAnswers = [
