@@ -22,6 +22,7 @@
 		4366FD5654F227CD54E47843 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
 		4497BB87740188A9B0161FA9 /* CloudDocumentBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */; };
 		454486EC3A9C459A6F3A8921 /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
+		495BA5BB31ED56CFFAC3782F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8E5001589642721682DB3DDB /* Assets.xcassets */; };
 		4B316805592F213538D17833 /* CloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403F1D5E2F7B717AA36B7847 /* CloudModels.swift */; };
 		51E9A44744DD63CFF8BA4A37 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F96AC29CC5F58079D083E7 /* WatchLink.swift */; };
 		52690AF218DEDD98F8DE4A66 /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
@@ -133,6 +134,7 @@
 		735687585A9125635C0FA7C1 /* MeetingRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecapView.swift; sourceTree = "<group>"; };
 		7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
 		87FB02E03A6A57301C08DB42 /* Sideleaf.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sideleaf.entitlements; sourceTree = "<group>"; };
+		8E5001589642721682DB3DDB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntelligenceTests.swift; sourceTree = "<group>"; };
 		92784A3C70BDB97D40072466 /* SideleafWatch.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; includeInIndex = 0; path = SideleafWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0C466B785C2509CACD27C1F /* Watch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Watch-Info.plist"; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 		027E1B6F019159EB4AFFB6C5 /* Watch */ = {
 			isa = PBXGroup;
 			children = (
+				8E5001589642721682DB3DDB /* Assets.xcassets */,
 				340FB2510EE05D1ECCE06CCB /* SideleafWatchApp.swift */,
 				E36E7ACCE08AE43865DDB267 /* WatchConnection.swift */,
 				EE78348FF91C74972DD6FF38 /* WatchMeetingView.swift */,
@@ -333,6 +336,7 @@
 			buildConfigurationList = 269BCE38B09A812C55342308 /* Build configuration list for PBXNativeTarget "SideleafWatch" */;
 			buildPhases = (
 				886176C5D24F4910EB27B8CF /* Sources */,
+				8B87DE8B53B030ABAA01EB24 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -400,6 +404,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				E882E3DE97C14A7400BF7F4F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8B87DE8B53B030ABAA01EB24 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				495BA5BB31ED56CFFAC3782F /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -606,6 +618,7 @@
 		5850913C979F6C941CDB21B8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Support/Watch-Info.plist;
@@ -628,6 +641,7 @@
 		5F91DC8040D0B3CE9392992B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Support/Watch-Info.plist;
