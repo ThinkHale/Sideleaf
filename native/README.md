@@ -1,6 +1,6 @@
 # Sideleaf native iPhone, iPad and Apple Watch source
 
-This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. Build `8` targets iPhone and iPad on iOS/iPadOS 26 under `com.thinkhale.sideleaf`, and adds two products alongside the app: a WidgetKit extension (`com.thinkhale.sideleaf.widget`) and a watchOS companion (`com.thinkhale.sideleaf.watchkitapp`). Build `8` has not been compiled: it was written on a Linux session with no Swift toolchain, no Xcode, no simulator and no device, so nothing below has been exercised. Earlier builds were validated compile-only; runtime UI, physical iPhone/iPad, touch ink, Apple Pencil, microphone, widget and watch behavior all remain unvalidated.
+This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. Build `8` targets iPhone and iPad on iOS/iPadOS 26 under `com.thinkhale.sideleaf`, and adds two products alongside the app: a WidgetKit extension (`com.thinkhale.sideleaf.widget`) and a watchOS companion (`com.thinkhale.sideleaf.watchkitapp`). Build `8` was written on a Linux session with no Swift toolchain, no Xcode, no simulator and no device. Xcode Cloud build 14 has since compiled and archived it with no errors, confirming that every target builds and that the bundle layout, background mode and watch companion metadata are right; it then failed at export because the new bundle identifiers and the App Group are not registered with Apple. Nothing has run: no test has executed and no build has launched on a simulator, phone or watch. Earlier builds were validated compile-only; runtime UI, physical iPhone/iPad, touch ink, Apple Pencil, microphone, widget and watch behavior all remain unvalidated.
 
 Source includes a local notebook library and typed page editor, PencilKit ink serialization and PNG preview, native text rectangle hit testing in explicit Mark mode, and original-quote preservation. It includes email/password sign-in through the Sideleaf backend, a signed Better Auth bearer and last server-confirmed Terms version stored together in Keychain, and revision-based synchronization for typed text and semantic marks. It preserves the rest of each shared remote document rather than replacing unknown blocks or web ink. PencilKit freehand ink remains device-only, and guest pages require an explicit adoption action before they are uploaded to an account.
 
@@ -45,11 +45,23 @@ The widget reads `MeetingSnapshot`, a small record holding the phase, title, ela
 
 `Watch/` builds a single-target watchOS app. The iPhone keeps the microphone and the cue engine; the watch is a remote control and a second screen. It offers Start with a kind, End, "Mark this moment", and the same top questions with an Asked button, and it taps the wrist when a new question arrives. Messages cross WatchConnectivity as JSON payloads, so only `Sendable` values cross a thread boundary; the transcript is never sent to the watch. When the phone is unreachable, a request falls back to `transferUserInfo` and the watch says so instead of pretending the meeting started.
 
+## Before build 8 can be exported
+
+Xcode Cloud, and automatic signing generally, never registers identifiers or capabilities with Apple. These five entries must exist in the Apple Developer portal first, or every export flavour fails:
+
+1. App ID `com.thinkhale.sideleaf.widget` (explicit), with App Groups enabled.
+2. App ID `com.thinkhale.sideleaf.watchkitapp` (explicit). It needs no capabilities; the watch target carries no entitlements.
+3. App Group `group.com.thinkhale.sideleaf`.
+4. App Groups enabled on the existing `com.thinkhale.sideleaf` identifier, with that group assigned.
+5. The same group assigned to `com.thinkhale.sideleaf.widget`.
+
+An embedded watch app needs no separate App Store Connect record; it ships inside the iPhone app.
+
 ## Capability and entitlement requirements
 
 Build `8` needs three capabilities the earlier builds did not:
 
-- **App Groups** (`group.com.thinkhale.sideleaf`) on the app and the widget, declared in `Support/Sideleaf.entitlements` and `Support/SideleafWidget.entitlements`. The group must be created for the team in the Apple Developer portal, or automatic signing will fail. `MeetingSharedStore` degrades to a private container rather than crashing if the entitlement is missing; the widget then only ever shows its idle face.
+- **App Groups** (`group.com.thinkhale.sideleaf`) on the app and the widget, declared in `Support/Sideleaf.entitlements` and `Support/SideleafWidget.entitlements`. The group must be created for the team in the Apple Developer portal, or automatic signing will fail. Build 14 proved this the hard way: exporting an archive that carries the entitlement fails with "Automatic signing cannot update bundle identifier" until the capability is enabled on the identifier, and that failure blocks the iPhone app too, not only the widget. `MeetingSharedStore` degrades to a private container rather than crashing if the entitlement is missing; the widget then only ever shows its idle face.
 - **Background audio** (`UIBackgroundModes`, `Support/Sideleaf-Info.plist`), so a meeting keeps listening when the screen locks. Confirm the built `Info.plist` contains `UIBackgroundModes` as an array with `audio`, and confirm App Review expectations for a continuously listening app before submitting.
 - **Notifications**, requested the first time someone adds a reminder from a recap.
 
