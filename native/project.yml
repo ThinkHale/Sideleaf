@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.thinkhale
   deploymentTarget:
     iOS: '26.0'
+    watchOS: '26.0'
 settings:
   base:
     SWIFT_VERSION: '6.0'
@@ -13,15 +14,25 @@ targets:
   Sideleaf:
     type: application
     platform: iOS
-    sources: [Sources]
+    sources: [Sources, Shared]
+    dependencies:
+      - target: SideleafWidget
+        embed: true
+      - target: SideleafWatch
+        embed: true
+        copy:
+          destination: productsDirectory
+          subpath: $(CONTENTS_FOLDER_PATH)/Watch
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.thinkhale.sideleaf
         MARKETING_VERSION: '1.0'
-        CURRENT_PROJECT_VERSION: '7'
+        CURRENT_PROJECT_VERSION: '8'
         TARGETED_DEVICE_FAMILY: '1,2'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Support/Sideleaf.entitlements
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Support/Sideleaf-Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Sideleaf
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -30,6 +41,37 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  SideleafWidget:
+    type: app-extension
+    platform: iOS
+    sources: [Widget, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.thinkhale.sideleaf.widget
+        MARKETING_VERSION: '1.0'
+        CURRENT_PROJECT_VERSION: '8'
+        TARGETED_DEVICE_FAMILY: '1,2'
+        CODE_SIGN_ENTITLEMENTS: Support/SideleafWidget.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Support/Widget-Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Sideleaf
+        SKIP_INSTALL: YES
+  SideleafWatch:
+    type: application
+    platform: watchOS
+    sources: [Watch, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.thinkhale.sideleaf.watchkitapp
+        MARKETING_VERSION: '1.0'
+        CURRENT_PROJECT_VERSION: '8'
+        TARGETED_DEVICE_FAMILY: '4'
+        SUPPORTS_MACCATALYST: NO
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Support/Watch-Info.plist
+        INFOPLIST_KEY_CFBundleDisplayName: Sideleaf
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.thinkhale.sideleaf
+        SKIP_INSTALL: YES
   SideleafTests:
     type: bundle.unit-test
     platform: iOS

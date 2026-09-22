@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import SwiftData
 import UIKit
@@ -5,10 +6,127 @@ import UIKit
 @main
 struct SideleafApp: App {
     @State private var sync = NotebookSync()
+    @State private var session = MeetingSession()
+    @State private var reminders = MeetingReminders()
+    @State private var router = SideleafRouter()
 
     var body: some Scene {
-        WindowGroup { NotebookLibrary().environment(sync) }
-            .modelContainer(for: LocalPage.self)
+        WindowGroup {
+            SideleafRootView()
+                .environment(sync)
+                .environment(session)
+                .environment(reminders)
+                .environment(router)
+        }
+        .modelContainer(for: LocalPage.self)
+    }
+}
+
+/// Sideleaf opens on the meeting, not on the notebook.
+///
+/// The first tab is the whole product: start listening, see what to ask, decide
+/// what to keep. Typed notes and ink live in the second tab, and a live meeting
+/// keeps running while the person writes there.
+struct SideleafRootView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(NotebookSync.self) private var sync
+    @Environment(MeetingSession.self) private var session
+    @Environment(MeetingReminders.self) private var reminders
+    @Environment(SideleafRouter.self) private var router
+
+    var body: some View {
+        @Bindable var router = router
+        return TabView(selection: $router.tab) {
+            Tab("Meeting", systemImage: "waveform", value: RootTab.meeting) {
+                NavigationStack { meetingTab }
+            }
+            .badge(session.isActive ? session.openAskCount : 0)
+            Tab("Notes", systemImage: "book.closed", value: RootTab.notes) {
+                NotebookLibrary()
+            }
+        }
+        .tint(.sideleafOlive)
+        .task {
+            WatchLink.shared.activate()
+            session.publishTo { snapshot in WatchLink.shared.send(snapshot) }
+            await sync.restore(context: context)
+            await reminders.refresh()
+            consumePendingRequest()
+        }
+        .onReceive(
+            NotificationCenter.default
+                .publisher(for: .sideleafMeetingRequest)
+                .receive(on: DispatchQueue.main)
+        ) { _ in
+            consumePendingRequest()
+        }
+        .onChange(of: WatchLink.shared.pendingRequest) { _, request in
+            guard let request else { return }
+            WatchLink.shared.clearPendingRequest()
+            handle(request)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { consumePendingRequest() }
+        }
+        .onChange(of: sync.shouldPresentTermsAcceptance) { _, required in
+            if required { router.showAccount = true }
+        }
+        .onChange(of: sync.canUseLiveTranscription) { _, permitted in
+            if !permitted, session.isActive { Task { await session.finish() } }
+        }
+        .sheet(isPresented: $router.showAccount) { NativeAccountSheet() }
+        .sheet(isPresented: $router.showPlanSheet) {
+            MeetingPlanSheet(pageID: router.planPageID)
+        }
+    }
+
+    @ViewBuilder
+    private var meetingTab: some View {
+        if session.hasRecap {
+            MeetingRecapView()
+        } else if session.isActive {
+            LiveMeetingView()
+        } else {
+            MeetingHomeView()
+        }
+    }
+
+    /// Handles a start or stop that came from a widget, a control, Siri or the
+    /// Apple Watch. The microphone only ever opens here, in the app.
+    private func handle(_ request: MeetingRequest) {
+        switch request.action {
+        case .open:
+            router.tab = .meeting
+        case .start:
+            router.tab = .meeting
+            guard !session.isActive, !session.hasRecap else { return }
+            guard sync.canUseLiveTranscription else {
+                router.showAccount = true
+                return
+            }
+            let kind = request.kind ?? .meeting
+            Task {
+                await session.start(plan: MeetingPlan(kind: kind, title: kind.defaultTitle))
+            }
+        case .stop:
+            router.tab = .meeting
+            guard session.isActive else { return }
+            Task { await session.finish() }
+        case .markMoment:
+            guard session.isActive else { return }
+            session.markMoment()
+        case .markAsked:
+            guard let id = request.cueID,
+                  let cue = session.cues.first(where: { $0.id == id })
+            else { return }
+            session.markAsked(cue)
+        }
+    }
+
+    private func consumePendingRequest() {
+        guard let request = MeetingSharedStore.takeRequest() else { return }
+        handle(request)
     }
 }
 
@@ -34,6 +152,9 @@ final class LocalPage {
     @Attribute(.externalStorage) var recoveryDocumentData: Data?
     var transcriptBlockID: UUID?
     var localTranscript: String?
+    /// Set when this page holds a saved meeting, so the meeting tab can list it.
+    var meetingKind: String?
+    var meetingEndedAt: Date?
 
     init(id: UUID = UUID(), title: String = "Untitled page") {
         self.id = id; self.title = title; text = ""; textRevision = 1
@@ -43,6 +164,7 @@ final class LocalPage {
         cloudDocumentData = nil; cloudBlockID = nil; conflictDocumentData = nil
         recoveryDocumentData = nil
         transcriptBlockID = nil; localTranscript = nil
+        meetingKind = nil; meetingEndedAt = nil
     }
     var annotations: [NativeAnnotation] {
         get { (try? JSONDecoder().decode([NativeAnnotation].self, from: annotationData)) ?? [] }
@@ -54,10 +176,10 @@ struct NotebookLibrary: View {
     @Environment(\.modelContext) private var context
     @Environment(NotebookSync.self) private var sync
     @Query(sort: \LocalPage.updatedAt, order: .reverse) private var pages: [LocalPage]
+    @Environment(SideleafRouter.self) private var router
     @State private var selected: UUID?
     @State private var search = ""
     @State private var preferredCompactColumn = NavigationSplitViewColumn.sidebar
-    @State private var showAccount = false
 
     var body: some View {
         NavigationSplitView(preferredCompactColumn: $preferredCompactColumn) {
@@ -90,18 +212,12 @@ struct NotebookLibrary: View {
                 ToolbarItem(placement: .principal) { SideleafWordmark() }
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button(sync.accountActionLabel, systemImage: accountSymbol) {
-                        showAccount = true
+                        router.openAccount()
                     }
                     .labelStyle(.iconOnly)
                     .accessibilityHint(sync.accountActionHint)
                     Button("New page", systemImage: "plus") {
-                        let page = LocalPage()
-                        if let identity = sync.identity {
-                            page.ownerUserID = identity.id
-                            page.cloudBlockID = page.id
-                            page.pendingMutationID = UUID()
-                        }
-                        context.insert(page)
+                        let page = sync.newPage(titled: "Untitled page", context: context)
                         sync.pageDidChange(page, context: context)
                         selected = page.id
                         preferredCompactColumn = .detail
@@ -111,27 +227,26 @@ struct NotebookLibrary: View {
             }
         } detail: {
             if let page = visiblePages.first(where: { $0.id == selected }) {
-                NativeNotebookPage(page: page) { showAccount = true }
+                NativeNotebookPage(page: page)
                     .id(page.id)
             }
             else { SideleafEmptyPage() }
         }
-        .tint(Color(red: 0.41, green: 0.45, blue: 0.33))
-        .task { await sync.restore(context: context) }
-        .sheet(isPresented: $showAccount) {
-            NativeAccountSheet(pages: pages)
-        }
+        .tint(.sideleafOlive)
         .onChange(of: selected) { _, pageID in
             if pageID != nil { preferredCompactColumn = .detail }
+        }
+        .onChange(of: router.selectedPageID, initial: true) { _, pageID in
+            guard let pageID else { return }
+            selected = pageID
+            preferredCompactColumn = .detail
+            router.selectedPageID = nil
         }
         .onChange(of: sync.identity?.id) {
             if let selected, !visiblePages.contains(where: { $0.id == selected }) {
                 self.selected = nil
                 preferredCompactColumn = .sidebar
             }
-        }
-        .onChange(of: sync.shouldPresentTermsAcceptance) { _, required in
-            if required { showAccount = true }
         }
     }
 
@@ -195,12 +310,11 @@ struct NativeNotebookPage: View {
     @Environment(NotebookSync.self) private var sync
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(SideleafRouter.self) private var router
+    @Environment(MeetingSession.self) private var session
     @State private var tool: NotebookTool = .type
-    @State private var transcription = LiveTranscription()
-    @State private var showTranscription = false
     @State private var undoSignal = 0
     @State private var redoSignal = 0
-    let openAccount: () -> Void
 
     var body: some View {
         ScrollView {
@@ -240,25 +354,14 @@ struct NativeNotebookPage: View {
                     }
                 }
                 .frame(minHeight: 1200)
-                if !page.annotations.isEmpty {
-                    Text("Important").font(.title2).fontDesign(.serif)
-                    ForEach(page.annotations) { mark in
-                        HStack(alignment: .top) {
-                            Image(systemName: "star")
-                            VStack(alignment: .leading) {
-                                Text(mark.anchor.quote)
-                                if !mark.anchor.resolved { Text("Source changed. Original quote preserved.").font(.caption).foregroundStyle(.orange) }
-                            }
-                            Spacer()
-                            Button("Remove mark", systemImage: "trash") {
-                                page.annotations.removeAll { $0.id == mark.id }
-                                sync.pageDidChange(page, context: context)
-                            }
-                            .labelStyle(.iconOnly)
-                            .frame(minWidth: 44, minHeight: 44)
-                        }
-                    }
-                }
+                annotationSection(
+                    "Follow-ups and next steps",
+                    page.annotations.filter { $0.kind != "important" }
+                )
+                annotationSection(
+                    "Important",
+                    page.annotations.filter { $0.kind == "important" }
+                )
             }
             .padding(horizontalSizeClass == .compact ? 16 : 30)
             .background(Color(red: 1, green: 0.99, blue: 0.97))
@@ -268,38 +371,64 @@ struct NativeNotebookPage: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(
-                    transcriptionToolbarLabel,
-                    systemImage: transcription.isListening
-                        ? "mic.fill"
-                        : (sync.canUseLiveTranscription ? "mic" : "mic.slash")
-                ) {
-                    if sync.canUseLiveTranscription {
-                        showTranscription = true
+                Button(meetingToolbarLabel, systemImage: meetingToolbarSymbol) {
+                    if session.isActive || session.hasRecap {
+                        router.tab = .meeting
+                    } else if sync.canUseLiveTranscription {
+                        router.planMeeting(on: page.id)
                     } else {
-                        openAccount()
+                        router.openAccount()
                     }
                 }
-                .tint(
-                    transcription.isListening
-                        ? .red
-                        : (sync.canUseLiveTranscription ? .olive : .secondary)
-                )
+                .tint(session.isActive ? .red : (sync.canUseLiveTranscription ? .sideleafOlive : .secondary))
                 .labelStyle(.iconOnly)
-                .accessibilityHint(transcriptionToolbarHint)
-                Button(sync.accountActionLabel, systemImage: "person.crop.circle") { openAccount() }
+                .accessibilityHint(meetingToolbarHint)
+                Button(sync.accountActionLabel, systemImage: "person.crop.circle") {
+                    router.openAccount()
+                }
                 .labelStyle(.iconOnly)
                 .accessibilityHint(sync.accountActionHint)
             }
         }
-        .sheet(isPresented: $showTranscription) {
-            LiveTranscriptionSheet(page: page, transcription: transcription)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            Task { await transcription.stop() }
-        }
-        .onDisappear {
-            Task { await transcription.stop() }
+    }
+
+    /// Marks saved from a meeting keep the shared contract's kinds, so the page
+    /// shows follow-ups and next steps separately from plain highlights.
+    @ViewBuilder
+    private func annotationSection(_ title: String, _ marks: [NativeAnnotation]) -> some View {
+        if !marks.isEmpty {
+            Text(title).font(.title2).fontDesign(.serif)
+            ForEach(marks) { mark in
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: mark.kind == "action" ? "checkmark.circle" : (mark.kind == "important" ? "star" : "questionmark.bubble"))
+                        .foregroundStyle(.sideleafOlive)
+                    VStack(alignment: .leading, spacing: 3) {
+                        if !mark.question.isEmpty {
+                            Text(mark.question)
+                        }
+                        Text(mark.anchor.quote)
+                            .font(mark.question.isEmpty ? .body : .caption)
+                            .foregroundStyle(mark.question.isEmpty ? .primary : .secondary)
+                        if mark.state == "addressed" {
+                            Text("Asked during the meeting.")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        if !mark.anchor.resolved {
+                            Text("Source changed. Original quote preserved.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
+                    Button("Remove mark", systemImage: "trash") {
+                        page.annotations.removeAll { $0.id == mark.id }
+                        sync.pageDidChange(page, context: context)
+                    }
+                    .labelStyle(.iconOnly)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+            }
         }
     }
 
@@ -322,30 +451,25 @@ struct NativeNotebookPage: View {
         horizontalSizeClass == .compact || dynamicTypeSize.isAccessibilitySize
     }
 
-    private var transcriptionToolbarLabel: String {
-        if !sync.canUseLiveTranscription {
-            return "Review terms to use live transcription"
-        }
-        switch transcription.state {
-        case .preparing, .downloadingAssets, .requestingPermission, .finalizing:
-            return "Live transcription: \(transcription.status)"
-        case .listening:
-            return "Live transcription, microphone active"
-        case .interrupted, .unavailable, .failed:
-            return "Live transcription: \(transcription.status)"
-        case .idle, .stopped:
-            return "Live transcription"
-        }
+    private var meetingToolbarLabel: String {
+        if session.isActive { return "Meeting in progress, microphone active" }
+        if session.hasRecap { return "Review the meeting recap" }
+        if !sync.canUseLiveTranscription { return "Review terms to start a meeting" }
+        return "Start a meeting on this page"
     }
 
-    private var transcriptionToolbarHint: String {
+    private var meetingToolbarSymbol: String {
+        if session.isActive { return "waveform" }
+        if session.hasRecap { return "text.badge.checkmark" }
+        return sync.canUseLiveTranscription ? "waveform.badge.plus" : "mic.slash"
+    }
+
+    private var meetingToolbarHint: String {
+        if session.isActive || session.hasRecap { return "Returns to the live meeting." }
         if !sync.canUseLiveTranscription {
             return "Opens account settings for the required Terms review."
         }
-        if transcription.isListening {
-            return "Opens transcription controls. The microphone is active."
-        }
-        return "Opens on-device live transcription."
+        return "Sideleaf listens on this device and saves its recap into this page."
     }
 
     private var titleBinding: Binding<String> {
@@ -450,7 +574,7 @@ struct NativeNotebookPage: View {
             ForEach(NotebookTool.allCases, id: \.self) { item in
                 Button(item.rawValue) { tool = item }
                     .buttonStyle(.bordered)
-                    .tint(tool == item ? .olive : .secondary)
+                    .tint(tool == item ? .sideleafOlive : .secondary)
                     .accessibilityAddTraits(tool == item ? .isSelected : [])
             }
             Spacer(minLength: 0)
@@ -496,7 +620,7 @@ private enum NativeAccountMode: String, CaseIterable, Identifiable {
 }
 
 private struct NativeAccountSheet: View {
-    let pages: [LocalPage]
+    @Query(sort: \LocalPage.updatedAt, order: .reverse) private var pages: [LocalPage]
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(NotebookSync.self) private var sync
@@ -845,188 +969,7 @@ private struct NativeAccountSheet: View {
     }
 }
 
-private struct LiveTranscriptionSheet: View {
-    private struct AppendIssue: Identifiable {
-        let id = UUID()
-        let message: String
-        let transcript: String
-    }
-
-    @Bindable var page: LocalPage
-    @Bindable var transcription: LiveTranscription
-    @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
-    @Environment(NotebookSync.self) private var sync
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var confirmDiscard = false
-    @State private var appendIssue: AppendIssue?
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Label("On-device live transcription", systemImage: "waveform")
-                        .font(.title2)
-                        .fontDesign(.serif)
-                    Text("Sideleaf uses this device's microphone and Apple's on-device speech model. Audio is held briefly in memory, never saved as a recording, and never uploaded. Choose Add to page to save transcript text with the page and sync it as personal notes.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("You are responsible for following applicable recording and interception laws, informing participants, and obtaining any permission required for this conversation.")
-                                .font(.callout)
-                            Link("View Terms of Service", destination: sync.termsURL)
-                                .font(.callout.weight(.semibold))
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    } label: {
-                        Label("Recording responsibility", systemImage: "person.2.badge.gearshape")
-                    }
-                    if let errorMessage = transcription.errorMessage {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .accessibilityLabel("Live transcription error")
-                            .accessibilityValue(errorMessage)
-                    } else {
-                        Label(
-                            transcription.status,
-                            systemImage: transcription.isListening ? "mic.fill" : "info.circle"
-                        )
-                        .foregroundStyle(transcription.isListening ? .red : .secondary)
-                        .accessibilityLabel("Live transcription status")
-                        .accessibilityValue(transcription.status)
-                    }
-                    if transcription.isBusy && !transcription.isListening {
-                        if let progress = transcription.assetDownloadProgress {
-                            ProgressView(progress)
-                                .accessibilityLabel("Downloading on-device language assets")
-                        } else {
-                            ProgressView("Preparing live transcription")
-                                .accessibilityValue(transcription.status)
-                        }
-                    }
-                    GroupBox("Live text") {
-                        Text(transcription.transcript.isEmpty ? "Your transcript will appear here." : transcription.transcript)
-                            .foregroundStyle(transcription.transcript.isEmpty ? .secondary : .primary)
-                            .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                            .textSelection(.enabled)
-                    }
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 12) { transcriptionActions }
-                        VStack(alignment: .leading, spacing: 12) { transcriptionActions }
-                    }
-                    if transcription.shouldOfferMicrophoneSettings {
-                        Link("Open Sideleaf Settings", destination: URL(string: UIApplication.openSettingsURLString)!)
-                    }
-                }
-                .frame(maxWidth: 680, alignment: .leading)
-                .padding()
-            }
-            .navigationTitle("Live Transcription")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        Task { await requestDismissal() }
-                    }
-                }
-            }
-        }
-        .confirmationDialog(
-            "Save this transcript?",
-            isPresented: $confirmDiscard,
-            titleVisibility: .visible
-        ) {
-            Button("Add to page") { addTranscriptToPage() }
-            Button("Discard transcript", role: .destructive) {
-                transcription.resetTranscript()
-                dismiss()
-            }
-            Button("Keep it here", role: .cancel) {}
-        } message: {
-            Text("Add the live text to this page or explicitly discard it before closing.")
-        }
-        .alert(item: $appendIssue) { issue in
-            Alert(
-                title: Text("Transcript was not added"),
-                message: Text(issue.message),
-                primaryButton: .default(Text("Copy live text")) {
-                    UIPasteboard.general.string = issue.transcript
-                },
-                secondaryButton: .cancel(Text("Keep it here"))
-            )
-        }
-        .interactiveDismissDisabled(
-            transcription.isListening
-                || transcription.state == .finalizing
-                || hasUncommittedTranscript
-        )
-        .onChange(of: sync.canUseLiveTranscription) { _, permitted in
-            if !permitted { Task { await transcription.stop() } }
-        }
-        .onChange(of: transcription.status) { oldStatus, newStatus in
-            guard oldStatus != newStatus else { return }
-            AccessibilityNotification.Announcement(newStatus).post()
-        }
-        .onDisappear { Task { await transcription.stop() } }
-        .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
-    }
-
-    @ViewBuilder
-    private var transcriptionActions: some View {
-        if transcription.isListening {
-            Button("Stop", systemImage: "stop.fill") {
-                Task { await transcription.stop() }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-        } else {
-            Button("Start", systemImage: "mic.fill") {
-                Task {
-                    await transcription.start(
-                        clearTranscript: transcription.transcript.isEmpty
-                    )
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!sync.canUseLiveTranscription || transcription.isBusy)
-        }
-        if !transcription.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           !transcription.isBusy
-        {
-            Button("Add to page", systemImage: "text.badge.plus") {
-                addTranscriptToPage()
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private var hasUncommittedTranscript: Bool {
-        !transcription.transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func requestDismissal() async {
-        await transcription.stop()
-        if hasUncommittedTranscript {
-            confirmDiscard = true
-        } else {
-            dismiss()
-        }
-    }
-
-    private func addTranscriptToPage() {
-        let value = transcription.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty else { return }
-        if let message = sync.appendTranscript(value, to: page, context: context) {
-            appendIssue = AppendIssue(message: message, transcript: value)
-            return
-        }
-        transcription.resetTranscript()
-        dismiss()
-    }
-}
-
-private extension NotebookSync {
+extension NotebookSync {
     var accountActionLabel: String {
         if isVerifyingRestoredSession { return "Account and sync, verifying session" }
         switch account {
@@ -1051,5 +994,3 @@ private extension NotebookSync {
             : "Opens account and synchronization settings."
     }
 }
-
-private extension Color { static let olive = Color(red: 0.41, green: 0.45, blue: 0.33) }

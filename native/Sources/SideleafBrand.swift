@@ -30,7 +30,7 @@ struct SideleafEmptyPage: View {
             Text("The next page is yours.")
                 .font(.title2)
                 .fontDesign(.serif)
-                .foregroundStyle(Color(red: 0.04, green: 0.13, blue: 0.23))
+                .foregroundStyle(Color.sideleafInk)
             Text("Create a page to write, draw, and gather your thoughts.")
                 .font(.body)
                 .foregroundStyle(Color(red: 0.32, green: 0.36, blue: 0.37))
@@ -42,6 +42,11 @@ struct SideleafEmptyPage: View {
     }
 }
 
-private extension Color {
-    static let sideleafPaper = Color(red: 1, green: 0.99, blue: 0.97)
+extension ShapeStyle where Self == Color {
+    /// The supplied Sideleaf sage. Anything Sideleaf itself suggests wears it.
+    static var sideleafOlive: Color { Color(red: 0.41, green: 0.45, blue: 0.33) }
+    /// The paper the notebook is drawn on.
+    static var sideleafPaper: Color { Color(red: 1, green: 0.99, blue: 0.97) }
+    /// The supplied navy, used for text the person wrote or said.
+    static var sideleafInk: Color { Color(red: 0.04, green: 0.13, blue: 0.23) }
 }

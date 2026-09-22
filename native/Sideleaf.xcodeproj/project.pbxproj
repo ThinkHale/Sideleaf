@@ -7,93 +7,262 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		005245A750FC8986036036FD /* CloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */; };
-		091E4DC8EE9BD6784192E984 /* NativeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */; };
-		2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131087EC06589A88E3B4C703 /* SideleafBrand.swift */; };
-		4D1B980C33ACA120DE0A0F99 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA06851AEA7427D056BFBDFE /* Assets.xcassets */; };
-		59701EC264B88D824A692109 /* Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB42A03498ECDFBEE55A4B2C /* Anchors.swift */; };
-		65298393AF000032E51890FC /* OnDeviceReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */; };
-		972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */; };
-		9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5931F8401B42ACD8274282E9 /* AnchorTests.swift */; };
-		A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */; };
-		A82C458A04E7156B273CCFC7 /* CloudDocumentBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */; };
-		D0B3FD18DD419F3B0CE7ADDE /* LiveTranscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */; };
-		D5A546926BEAE1078AB59F8B /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */; };
-		E594314533D2B68640F694FC /* NotebookSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */; };
+		0C5C9AB0334B3F2667A9E1A0 /* SideleafWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340FB2510EE05D1ECCE06CCB /* SideleafWatchApp.swift */; };
+		11ED5006876EC2F1A78201C8 /* LiveTranscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E509783D7AD41F888F8A44C4 /* LiveTranscription.swift */; };
+		178282A604F4B575ADE41640 /* NotebookSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1E9B6542D562056C14B773B /* NotebookSync.swift */; };
+		22AA71699AA07AD369806FD7 /* NativePaper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9DD2B0B74B2B45A7E3769D /* NativePaper.swift */; };
+		25FD5E7FB124B0CFB7A9457B /* MeetingIntelligenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */; };
+		3312096B0F83F810138C6E8C /* NativeAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4D504017B215E92FDCAA01E /* NativeAPI.swift */; };
+		33C6051D38EF387A818DF530 /* MeetingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58D0637119C7CB0512800E5 /* MeetingIntents.swift */; };
+		35801BD9C146DB8C5591E04B /* MeetingIntelligence.swift in Sources */ = {isa = PBXBuildFile; fileRef = E595E746E987279DFA45CD54 /* MeetingIntelligence.swift */; };
+		37A0A3380C60F8FF8EA34CEB /* MeetingRecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 735687585A9125635C0FA7C1 /* MeetingRecapView.swift */; };
+		4017AB145D63D2D77A48D293 /* WatchMeetingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE78348FF91C74972DD6FF38 /* WatchMeetingView.swift */; };
+		409740663B7AF516B23CE692 /* MeetingSaving.swift in Sources */ = {isa = PBXBuildFile; fileRef = 063A4FCF8817FCF32E7F8E76 /* MeetingSaving.swift */; };
+		414147871586D1F2D1BA1495 /* MeetingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A852DDB81C485FABB7DF3E /* MeetingSession.swift */; };
+		4366FD5654F227CD54E47843 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
+		4497BB87740188A9B0161FA9 /* CloudDocumentBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */; };
+		454486EC3A9C459A6F3A8921 /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
+		4B316805592F213538D17833 /* CloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403F1D5E2F7B717AA36B7847 /* CloudModels.swift */; };
+		51E9A44744DD63CFF8BA4A37 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F96AC29CC5F58079D083E7 /* WatchLink.swift */; };
+		52690AF218DEDD98F8DE4A66 /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
+		52BE3D7DBD8CFFBF64005129 /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
+		553F5B31D2FD7EB0FA60E759 /* MeetingReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EC784D5560587FF198BAF0 /* MeetingReminders.swift */; };
+		592737F6775600F8159E4764 /* MeetingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBF925662591252328934FB /* MeetingWidget.swift */; };
+		5E97E0A6B09F40056F13B69A /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
+		6027D678BDBB9A0F86DA5EE2 /* SideleafBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BC2C39FF24109F08B5E0AC /* SideleafBrand.swift */; };
+		68D00FC9DAB7D43DE5198553 /* AnchorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB26304FB4707BAC16D3D10 /* AnchorTests.swift */; };
+		6DD519906DB79808094D927E /* MeetingDatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */; };
+		6F4BBBCFFEC527D6957FB986 /* MeetingControlWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */; };
+		786C851E2D158F24537B84A2 /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
+		8060F7D3DC7565CA0D2D9EBD /* WatchConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36E7ACCE08AE43865DDB267 /* WatchConnection.swift */; };
+		88012A2B00B1CCB22B01503C /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
+		8A9F6AC9C163D8B7116BC6F4 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
+		8BD782715F50AB0583A2CA04 /* SideleafWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 92784A3C70BDB97D40072466 /* SideleafWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		8D67577F2204C19BC7834071 /* MeetingDates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414A4CF78AE261CE3F821E74 /* MeetingDates.swift */; };
+		8F2F829A247CBCF8DBD6B46C /* MeetingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58D0637119C7CB0512800E5 /* MeetingIntents.swift */; };
+		9129FFECDB67EA9FF3236507 /* SideleafWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5FE2DF62D2063F55F185EC0 /* SideleafWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9D5A85F97C8CF492EC6C4BDF /* MeetingRecap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CC354872514957A80A7812 /* MeetingRecap.swift */; };
+		A164BC5E1B2EE6684E129FC8 /* OnDeviceReadiness.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */; };
+		A932873E1BE0218759135545 /* MeetingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58D0637119C7CB0512800E5 /* MeetingIntents.swift */; };
+		AF74FB7E0888A2ABFBE1ECE2 /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */; };
+		B29E1437BFB2A915E86F557A /* SideleafShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C959F239AE5943177C543F /* SideleafShortcuts.swift */; };
+		B5DCB4E5A37EF4A704C20F6F /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
+		C04F5F391EFC1C3598560FFB /* NotebookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB43D9C9BE0FD58A0EAE733C /* NotebookApp.swift */; };
+		C7AD72D879297AB1095C32EE /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
+		C7FD5C8F913055CCDD324BBE /* MeetingRecapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7627768B68ED9A472A0F01 /* MeetingRecapTests.swift */; };
+		CE0416DD95A1609FB543CB39 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
+		D439602DE4230E8C755255E0 /* MeetingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F219633D3C0D2222757D537 /* MeetingViews.swift */; };
+		E5CA1D9CF93185B83D82EDB3 /* Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE657EA5EB053C5B7F5DC4A /* Anchors.swift */; };
+		E882E3DE97C14A7400BF7F4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42190938D87C518EDC721D57 /* Assets.xcassets */; };
+		ECA96F4E70EC775690BFAE9F /* SideleafWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E6E05FC16B544393A370D2 /* SideleafWidgetBundle.swift */; };
+		F57294FE72549A01A12FEF47 /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		045620023A5DEB7AC5FD124B /* PBXContainerItemProxy */ = {
+		3553F6D723B78949679D9D23 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D99282BAF0EE3C46461CC5A9 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 83C086EEB8B06133382B335D;
 			remoteInfo = Sideleaf;
 		};
+		9DAAE90C236F78B17A6516F5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D99282BAF0EE3C46461CC5A9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DC4C03602B2E5C74D5737852;
+			remoteInfo = SideleafWidget;
+		};
+		079846ED01E58A6D4380962C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D99282BAF0EE3C46461CC5A9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 21D4A57A30F2F17C6DBA8B5F;
+			remoteInfo = SideleafWatch;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		956CAFA141F46E60CD103AF7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				9129FFECDB67EA9FF3236507 /* SideleafWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FBDC99C13533ACB0187A2C4D /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				8BD782715F50AB0583A2CA04 /* SideleafWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		131087EC06589A88E3B4C703 /* SideleafBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafBrand.swift; sourceTree = "<group>"; };
-		2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePaper.swift; sourceTree = "<group>"; };
-		3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Sideleaf.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		5931F8401B42ACD8274282E9 /* AnchorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorTests.swift; sourceTree = "<group>"; };
-		6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAPI.swift; sourceTree = "<group>"; };
-		9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDocumentBridgeTests.swift; sourceTree = "<group>"; };
-		AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SideleafTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookSync.swift; sourceTree = "<group>"; };
-		CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
-		D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookApp.swift; sourceTree = "<group>"; };
-		D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudModels.swift; sourceTree = "<group>"; };
-		DA06851AEA7427D056BFBDFE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		DB42A03498ECDFBEE55A4B2C /* Anchors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Anchors.swift; sourceTree = "<group>"; };
-		DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceReadiness.swift; sourceTree = "<group>"; };
-		E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscription.swift; sourceTree = "<group>"; };
+		03A852DDB81C485FABB7DF3E /* MeetingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSession.swift; sourceTree = "<group>"; };
+		063A4FCF8817FCF32E7F8E76 /* MeetingSaving.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSaving.swift; sourceTree = "<group>"; };
+		0948407330F6DDCE2073AB31 /* MeetingKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingKind.swift; sourceTree = "<group>"; };
+		1EE657EA5EB053C5B7F5DC4A /* Anchors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Anchors.swift; sourceTree = "<group>"; };
+		20BC2C39FF24109F08B5E0AC /* SideleafBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafBrand.swift; sourceTree = "<group>"; };
+		340FB2510EE05D1ECCE06CCB /* SideleafWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafWatchApp.swift; sourceTree = "<group>"; };
+		38CC354872514957A80A7812 /* MeetingRecap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecap.swift; sourceTree = "<group>"; };
+		3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; includeInIndex = 0; path = Sideleaf.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D84DB613B64AC871F8A3D26 /* Sideleaf-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Sideleaf-Info.plist"; sourceTree = "<group>"; };
+		403F1D5E2F7B717AA36B7847 /* CloudModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudModels.swift; sourceTree = "<group>"; };
+		414A4CF78AE261CE3F821E74 /* MeetingDates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDates.swift; sourceTree = "<group>"; };
+		42190938D87C518EDC721D57 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		47F96AC29CC5F58079D083E7 /* WatchLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLink.swift; sourceTree = "<group>"; };
+		4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSnapshot.swift; sourceTree = "<group>"; };
+		4F219633D3C0D2222757D537 /* MeetingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingViews.swift; sourceTree = "<group>"; };
+		59E6E05FC16B544393A370D2 /* SideleafWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafWidgetBundle.swift; sourceTree = "<group>"; };
+		5A9DD2B0B74B2B45A7E3769D /* NativePaper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePaper.swift; sourceTree = "<group>"; };
+		5B961E1224C3D238D3359278 /* Widget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Widget-Info.plist"; sourceTree = "<group>"; };
+		5FB26304FB4707BAC16D3D10 /* AnchorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorTests.swift; sourceTree = "<group>"; };
+		6CBF925662591252328934FB /* MeetingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingWidget.swift; sourceTree = "<group>"; };
+		70EC784D5560587FF198BAF0 /* MeetingReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminders.swift; sourceTree = "<group>"; };
+		735687585A9125635C0FA7C1 /* MeetingRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecapView.swift; sourceTree = "<group>"; };
+		7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
+		87FB02E03A6A57301C08DB42 /* Sideleaf.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sideleaf.entitlements; sourceTree = "<group>"; };
+		914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntelligenceTests.swift; sourceTree = "<group>"; };
+		92784A3C70BDB97D40072466 /* SideleafWatch.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; includeInIndex = 0; path = SideleafWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0C466B785C2509CACD27C1F /* Watch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Watch-Info.plist"; sourceTree = "<group>"; };
+		AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; includeInIndex = 0; path = SideleafTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0C959F239AE5943177C543F /* SideleafShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafShortcuts.swift; sourceTree = "<group>"; };
+		B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceReadiness.swift; sourceTree = "<group>"; };
+		C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingControlWidget.swift; sourceTree = "<group>"; };
+		CBA8825B7843230D62C28EEB /* WatchMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchMessage.swift; sourceTree = "<group>"; };
+		D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDocumentBridgeTests.swift; sourceTree = "<group>"; };
+		D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCue.swift; sourceTree = "<group>"; };
+		E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDatesTests.swift; sourceTree = "<group>"; };
+		E1E9B6542D562056C14B773B /* NotebookSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookSync.swift; sourceTree = "<group>"; };
+		E36E7ACCE08AE43865DDB267 /* WatchConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnection.swift; sourceTree = "<group>"; };
+		E4D504017B215E92FDCAA01E /* NativeAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAPI.swift; sourceTree = "<group>"; };
+		E509783D7AD41F888F8A44C4 /* LiveTranscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTranscription.swift; sourceTree = "<group>"; };
+		E58D0637119C7CB0512800E5 /* MeetingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntents.swift; sourceTree = "<group>"; };
+		E595E746E987279DFA45CD54 /* MeetingIntelligence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntelligence.swift; sourceTree = "<group>"; };
+		EE7627768B68ED9A472A0F01 /* MeetingRecapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecapTests.swift; sourceTree = "<group>"; };
+		EE78348FF91C74972DD6FF38 /* WatchMeetingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchMeetingView.swift; sourceTree = "<group>"; };
+		F5FE2DF62D2063F55F185EC0 /* SideleafWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SideleafWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB43D9C9BE0FD58A0EAE733C /* NotebookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookApp.swift; sourceTree = "<group>"; };
+		FF61B3A423D5228601D782BA /* SideleafWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SideleafWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		2FBFC5F8F3603883048A374C /* Products */ = {
+		B46A6AFB1DC88CE23F6E63F1 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */,
+				E58D0637119C7CB0512800E5 /* MeetingIntents.swift */,
+				0948407330F6DDCE2073AB31 /* MeetingKind.swift */,
+				4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */,
+				CBA8825B7843230D62C28EEB /* WatchMessage.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		420CFB359C2A33DC60BFB328 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				1EE657EA5EB053C5B7F5DC4A /* Anchors.swift */,
+				42190938D87C518EDC721D57 /* Assets.xcassets */,
+				403F1D5E2F7B717AA36B7847 /* CloudModels.swift */,
+				7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */,
+				E509783D7AD41F888F8A44C4 /* LiveTranscription.swift */,
+				414A4CF78AE261CE3F821E74 /* MeetingDates.swift */,
+				E595E746E987279DFA45CD54 /* MeetingIntelligence.swift */,
+				38CC354872514957A80A7812 /* MeetingRecap.swift */,
+				735687585A9125635C0FA7C1 /* MeetingRecapView.swift */,
+				70EC784D5560587FF198BAF0 /* MeetingReminders.swift */,
+				063A4FCF8817FCF32E7F8E76 /* MeetingSaving.swift */,
+				03A852DDB81C485FABB7DF3E /* MeetingSession.swift */,
+				4F219633D3C0D2222757D537 /* MeetingViews.swift */,
+				E4D504017B215E92FDCAA01E /* NativeAPI.swift */,
+				5A9DD2B0B74B2B45A7E3769D /* NativePaper.swift */,
+				FB43D9C9BE0FD58A0EAE733C /* NotebookApp.swift */,
+				E1E9B6542D562056C14B773B /* NotebookSync.swift */,
+				B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */,
+				20BC2C39FF24109F08B5E0AC /* SideleafBrand.swift */,
+				B0C959F239AE5943177C543F /* SideleafShortcuts.swift */,
+				47F96AC29CC5F58079D083E7 /* WatchLink.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		F7ED0AE08FBB92027261B793 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				3D84DB613B64AC871F8A3D26 /* Sideleaf-Info.plist */,
+				87FB02E03A6A57301C08DB42 /* Sideleaf.entitlements */,
+				FF61B3A423D5228601D782BA /* SideleafWidget.entitlements */,
+				A0C466B785C2509CACD27C1F /* Watch-Info.plist */,
+				5B961E1224C3D238D3359278 /* Widget-Info.plist */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		74C0354F987B4FC0FDE2C044 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				5FB26304FB4707BAC16D3D10 /* AnchorTests.swift */,
+				D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */,
+				E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */,
+				914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */,
+				EE7627768B68ED9A472A0F01 /* MeetingRecapTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		027E1B6F019159EB4AFFB6C5 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				340FB2510EE05D1ECCE06CCB /* SideleafWatchApp.swift */,
+				E36E7ACCE08AE43865DDB267 /* WatchConnection.swift */,
+				EE78348FF91C74972DD6FF38 /* WatchMeetingView.swift */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
+		206D9AE6A6433106E0AF6963 /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */,
+				6CBF925662591252328934FB /* MeetingWidget.swift */,
+				59E6E05FC16B544393A370D2 /* SideleafWidgetBundle.swift */,
+			);
+			path = Widget;
+			sourceTree = "<group>";
+		};
+		2FBFC5F8F3603883048A374C = {
 			isa = PBXGroup;
 			children = (
 				3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */,
 				AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */,
+				F5FE2DF62D2063F55F185EC0 /* SideleafWidget.appex */,
+				92784A3C70BDB97D40072466 /* SideleafWatch.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		608AF29DA2726756CBF8D1E1 /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				DB42A03498ECDFBEE55A4B2C /* Anchors.swift */,
-				DA06851AEA7427D056BFBDFE /* Assets.xcassets */,
-				D6183A48AA9EEACD2BDBCA86 /* CloudModels.swift */,
-				CE936E7F8FB3A07FB7097B3F /* KeychainSessionStore.swift */,
-				E69BE97BB3F8DD5893A56F47 /* LiveTranscription.swift */,
-				6ED9FC5901B6201CE6F45ADE /* NativeAPI.swift */,
-				2ED5058B50E8E194FFFBC3B2 /* NativePaper.swift */,
-				D5D74637B608D8C7FED4C4E7 /* NotebookApp.swift */,
-				B415595EC4E10F9FBA64A5D9 /* NotebookSync.swift */,
-				DE8FCAE77EB2BA7D087C90D7 /* OnDeviceReadiness.swift */,
-				131087EC06589A88E3B4C703 /* SideleafBrand.swift */,
-			);
-			path = Sources;
 			sourceTree = "<group>";
 		};
 		BD661642B9D8C6DD6119DFE8 = {
 			isa = PBXGroup;
 			children = (
-				608AF29DA2726756CBF8D1E1 /* Sources */,
-				DA8BD3ED00E630A1063A1120 /* Tests */,
+				B46A6AFB1DC88CE23F6E63F1 /* Shared */,
+				420CFB359C2A33DC60BFB328 /* Sources */,
+				F7ED0AE08FBB92027261B793 /* Support */,
+				74C0354F987B4FC0FDE2C044 /* Tests */,
+				027E1B6F019159EB4AFFB6C5 /* Watch */,
+				206D9AE6A6433106E0AF6963 /* Widget */,
 				2FBFC5F8F3603883048A374C /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		DA8BD3ED00E630A1063A1120 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-				5931F8401B42ACD8274282E9 /* AnchorTests.swift */,
-				9F36CDD277120A7EA552E386 /* CloudDocumentBridgeTests.swift */,
-			);
-			path = Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -101,14 +270,18 @@
 /* Begin PBXNativeTarget section */
 		83C086EEB8B06133382B335D /* Sideleaf */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 1C0E21C7F9E5161824CAE05B /* Build configuration list for PBXNativeTarget "Sideleaf" */;
+			buildConfigurationList = BBF1308D89B96946FE898937 /* Build configuration list for PBXNativeTarget "Sideleaf" */;
 			buildPhases = (
-				7BBBD99E2D22872DD6DE7FF0 /* Sources */,
-				1677F87285EBF9BD7C1C55DF /* Resources */,
+				7A2692BBA3706731274B7E00 /* Sources */,
+				61759B649A9FF3AB5F090C77 /* Resources */,
+				956CAFA141F46E60CD103AF7 /* Embed Foundation Extensions */,
+				FBDC99C13533ACB0187A2C4D /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				727CB6122F3727DC127397C6 /* PBXTargetDependency */,
+				10AEEE2F622A71E129744171 /* PBXTargetDependency */,
 			);
 			name = Sideleaf;
 			packageProductDependencies = (
@@ -119,14 +292,14 @@
 		};
 		E2D5612925279B4A36AA07A3 /* SideleafTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E5EA970D96EAD80B06550268 /* Build configuration list for PBXNativeTarget "SideleafTests" */;
+			buildConfigurationList = FFC117DDEFED0B0765FB865F /* Build configuration list for PBXNativeTarget "SideleafTests" */;
 			buildPhases = (
-				D36EE38AA826DADF32F6313D /* Sources */,
+				21244E5E74BCD807B05E8557 /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				F2EC80189F9A2117BAF67134 /* PBXTargetDependency */,
+				4DA2A70580CEB596A8227783 /* PBXTargetDependency */,
 			);
 			name = SideleafTests;
 			packageProductDependencies = (
@@ -134,6 +307,40 @@
 			productName = SideleafTests;
 			productReference = AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DC4C03602B2E5C74D5737852 /* SideleafWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AEDA20A6C34A2BF1772BFB34 /* Build configuration list for PBXNativeTarget "SideleafWidget" */;
+			buildPhases = (
+				9306BD5168E3D87641B40A24 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SideleafWidget;
+			packageProductDependencies = (
+			);
+			productName = SideleafWidget;
+			productReference = F5FE2DF62D2063F55F185EC0 /* SideleafWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		21D4A57A30F2F17C6DBA8B5F /* SideleafWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 269BCE38B09A812C55342308 /* Build configuration list for PBXNativeTarget "SideleafWatch" */;
+			buildPhases = (
+				886176C5D24F4910EB27B8CF /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SideleafWatch;
+			packageProductDependencies = (
+			);
+			productName = SideleafWatch;
+			productReference = 92784A3C70BDB97D40072466 /* SideleafWatch.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -152,9 +359,17 @@
 						DevelopmentTeam = MZ3635323W;
 						ProvisioningStyle = Automatic;
 					};
+					DC4C03602B2E5C74D5737852 = {
+						DevelopmentTeam = MZ3635323W;
+						ProvisioningStyle = Automatic;
+					};
+					21D4A57A30F2F17C6DBA8B5F = {
+						DevelopmentTeam = MZ3635323W;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
-			buildConfigurationList = FCEE6862E92303CB4B959954 /* Build configuration list for PBXProject "Sideleaf" */;
+			buildConfigurationList = 1F4E3D13C2320EDA50221924 /* Build configuration list for PBXProject "Sideleaf" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -170,86 +385,120 @@
 			targets = (
 				83C086EEB8B06133382B335D /* Sideleaf */,
 				E2D5612925279B4A36AA07A3 /* SideleafTests */,
+				DC4C03602B2E5C74D5737852 /* SideleafWidget */,
+				21D4A57A30F2F17C6DBA8B5F /* SideleafWatch */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		1677F87285EBF9BD7C1C55DF /* Resources */ = {
+		61759B649A9FF3AB5F090C77 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4D1B980C33ACA120DE0A0F99 /* Assets.xcassets in Resources */,
+				E882E3DE97C14A7400BF7F4F /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		7BBBD99E2D22872DD6DE7FF0 /* Sources */ = {
+		7A2692BBA3706731274B7E00 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				59701EC264B88D824A692109 /* Anchors.swift in Sources */,
-				005245A750FC8986036036FD /* CloudModels.swift in Sources */,
-				D5A546926BEAE1078AB59F8B /* KeychainSessionStore.swift in Sources */,
-				D0B3FD18DD419F3B0CE7ADDE /* LiveTranscription.swift in Sources */,
-				091E4DC8EE9BD6784192E984 /* NativeAPI.swift in Sources */,
-				972AAFBFAD1C5B24D011319B /* NativePaper.swift in Sources */,
-				A666377C9D5C876160354E29 /* NotebookApp.swift in Sources */,
-				E594314533D2B68640F694FC /* NotebookSync.swift in Sources */,
-				65298393AF000032E51890FC /* OnDeviceReadiness.swift in Sources */,
-				2E38DA95DA4D4522F8C30373 /* SideleafBrand.swift in Sources */,
+				E5CA1D9CF93185B83D82EDB3 /* Anchors.swift in Sources */,
+				4B316805592F213538D17833 /* CloudModels.swift in Sources */,
+				AF74FB7E0888A2ABFBE1ECE2 /* KeychainSessionStore.swift in Sources */,
+				11ED5006876EC2F1A78201C8 /* LiveTranscription.swift in Sources */,
+				52690AF218DEDD98F8DE4A66 /* MeetingCue.swift in Sources */,
+				8D67577F2204C19BC7834071 /* MeetingDates.swift in Sources */,
+				35801BD9C146DB8C5591E04B /* MeetingIntelligence.swift in Sources */,
+				8F2F829A247CBCF8DBD6B46C /* MeetingIntents.swift in Sources */,
+				4366FD5654F227CD54E47843 /* MeetingKind.swift in Sources */,
+				9D5A85F97C8CF492EC6C4BDF /* MeetingRecap.swift in Sources */,
+				37A0A3380C60F8FF8EA34CEB /* MeetingRecapView.swift in Sources */,
+				553F5B31D2FD7EB0FA60E759 /* MeetingReminders.swift in Sources */,
+				409740663B7AF516B23CE692 /* MeetingSaving.swift in Sources */,
+				414147871586D1F2D1BA1495 /* MeetingSession.swift in Sources */,
+				454486EC3A9C459A6F3A8921 /* MeetingSnapshot.swift in Sources */,
+				D439602DE4230E8C755255E0 /* MeetingViews.swift in Sources */,
+				3312096B0F83F810138C6E8C /* NativeAPI.swift in Sources */,
+				22AA71699AA07AD369806FD7 /* NativePaper.swift in Sources */,
+				C04F5F391EFC1C3598560FFB /* NotebookApp.swift in Sources */,
+				178282A604F4B575ADE41640 /* NotebookSync.swift in Sources */,
+				A164BC5E1B2EE6684E129FC8 /* OnDeviceReadiness.swift in Sources */,
+				6027D678BDBB9A0F86DA5EE2 /* SideleafBrand.swift in Sources */,
+				B29E1437BFB2A915E86F557A /* SideleafShortcuts.swift in Sources */,
+				51E9A44744DD63CFF8BA4A37 /* WatchLink.swift in Sources */,
+				F57294FE72549A01A12FEF47 /* WatchMessage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D36EE38AA826DADF32F6313D /* Sources */ = {
+		21244E5E74BCD807B05E8557 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9D954CD7505E305CB161E3AF /* AnchorTests.swift in Sources */,
-				A82C458A04E7156B273CCFC7 /* CloudDocumentBridgeTests.swift in Sources */,
+				68D00FC9DAB7D43DE5198553 /* AnchorTests.swift in Sources */,
+				4497BB87740188A9B0161FA9 /* CloudDocumentBridgeTests.swift in Sources */,
+				6DD519906DB79808094D927E /* MeetingDatesTests.swift in Sources */,
+				25FD5E7FB124B0CFB7A9457B /* MeetingIntelligenceTests.swift in Sources */,
+				C7FD5C8F913055CCDD324BBE /* MeetingRecapTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		886176C5D24F4910EB27B8CF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88012A2B00B1CCB22B01503C /* MeetingCue.swift in Sources */,
+				33C6051D38EF387A818DF530 /* MeetingIntents.swift in Sources */,
+				CE0416DD95A1609FB543CB39 /* MeetingKind.swift in Sources */,
+				C7AD72D879297AB1095C32EE /* MeetingSnapshot.swift in Sources */,
+				0C5C9AB0334B3F2667A9E1A0 /* SideleafWatchApp.swift in Sources */,
+				8060F7D3DC7565CA0D2D9EBD /* WatchConnection.swift in Sources */,
+				4017AB145D63D2D77A48D293 /* WatchMeetingView.swift in Sources */,
+				52BE3D7DBD8CFFBF64005129 /* WatchMessage.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9306BD5168E3D87641B40A24 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6F4BBBCFFEC527D6957FB986 /* MeetingControlWidget.swift in Sources */,
+				786C851E2D158F24537B84A2 /* MeetingCue.swift in Sources */,
+				A932873E1BE0218759135545 /* MeetingIntents.swift in Sources */,
+				8A9F6AC9C163D8B7116BC6F4 /* MeetingKind.swift in Sources */,
+				5E97E0A6B09F40056F13B69A /* MeetingSnapshot.swift in Sources */,
+				592737F6775600F8159E4764 /* MeetingWidget.swift in Sources */,
+				ECA96F4E70EC775690BFAE9F /* SideleafWidgetBundle.swift in Sources */,
+				B5DCB4E5A37EF4A704C20F6F /* WatchMessage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		F2EC80189F9A2117BAF67134 /* PBXTargetDependency */ = {
+		4DA2A70580CEB596A8227783 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 83C086EEB8B06133382B335D /* Sideleaf */;
-			targetProxy = 045620023A5DEB7AC5FD124B /* PBXContainerItemProxy */;
+			targetProxy = 3553F6D723B78949679D9D23 /* PBXContainerItemProxy */;
+		};
+		727CB6122F3727DC127397C6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DC4C03602B2E5C74D5737852 /* SideleafWidget */;
+			targetProxy = 9DAAE90C236F78B17A6516F5 /* PBXContainerItemProxy */;
+		};
+		10AEEE2F622A71E129744171 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 21D4A57A30F2F17C6DBA8B5F /* SideleafWatch */;
+			targetProxy = 079846ED01E58A6D4380962C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		6273C30E4D581A6D21D426FF /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		81578380FCD8E80A64A52B06 /* Release */ = {
+		234AAEA3451584B184988675 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -266,7 +515,7 @@
 			};
 			name = Release;
 		};
-		B7E4299C1620203B0B4201B5 /* Debug */ = {
+		4A43692AD8BCEEB8B727C85B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -329,10 +578,128 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
-		B7FC701CB85B05102459B89D /* Release */ = {
+		53F7647C3DFAB7C1AC6C692C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.SideleafTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sideleaf.app/Sideleaf";
+			};
+			name = Debug;
+		};
+		5850913C979F6C941CDB21B8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Watch-Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.thinkhale.sideleaf;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		5F91DC8040D0B3CE9392992B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Watch-Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.thinkhale.sideleaf;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf.watchkitapp;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		99DF1A8500B74593B041E61A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Support/Sideleaf.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Sideleaf-Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AB755F173E62FFF4A265A577 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Support/Sideleaf.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Sideleaf-Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C28449456A5A705A7479770B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -388,78 +755,98 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
-		C5446E11E2A130C91E24F41B /* Release */ = {
+		C31FB057B2E1F8A060073080 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Support/SideleafWidget.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Widget-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf.widget;
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
-		EFB4483A5CF776A97D70C0B0 /* Debug */ = {
+		EDD77B7390149974CE8F305B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_ENTITLEMENTS = Support/SideleafWidget.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 8;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Support/Widget-Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
+					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.SideleafTests;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.thinkhale.sideleaf.widget;
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Sideleaf.app/Sideleaf";
 			};
 			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		1C0E21C7F9E5161824CAE05B /* Build configuration list for PBXNativeTarget "Sideleaf" */ = {
+		1F4E3D13C2320EDA50221924 /* Build configuration list for PBXProject "Sideleaf" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6273C30E4D581A6D21D426FF /* Debug */,
-				C5446E11E2A130C91E24F41B /* Release */,
+				4A43692AD8BCEEB8B727C85B /* Debug */,
+				C28449456A5A705A7479770B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		E5EA970D96EAD80B06550268 /* Build configuration list for PBXNativeTarget "SideleafTests" */ = {
+		269BCE38B09A812C55342308 /* Build configuration list for PBXNativeTarget "SideleafWatch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				EFB4483A5CF776A97D70C0B0 /* Debug */,
-				81578380FCD8E80A64A52B06 /* Release */,
+				5850913C979F6C941CDB21B8 /* Debug */,
+				5F91DC8040D0B3CE9392992B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		FCEE6862E92303CB4B959954 /* Build configuration list for PBXProject "Sideleaf" */ = {
+		AEDA20A6C34A2BF1772BFB34 /* Build configuration list for PBXNativeTarget "SideleafWidget" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				B7E4299C1620203B0B4201B5 /* Debug */,
-				B7FC701CB85B05102459B89D /* Release */,
+				EDD77B7390149974CE8F305B /* Debug */,
+				C31FB057B2E1F8A060073080 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BBF1308D89B96946FE898937 /* Build configuration list for PBXNativeTarget "Sideleaf" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB755F173E62FFF4A265A577 /* Debug */,
+				99DF1A8500B74593B041E61A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FFC117DDEFED0B0765FB865F /* Build configuration list for PBXNativeTarget "SideleafTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53F7647C3DFAB7C1AC6C692C /* Debug */,
+				234AAEA3451584B184988675 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

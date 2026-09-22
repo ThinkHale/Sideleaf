@@ -1,6 +1,6 @@
-# Sideleaf native iPhone and iPad feasibility slice
+# Sideleaf native iPhone, iPad and Apple Watch source
 
-This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. Build `7` targets iPhone and iPad on iOS/iPadOS 26 under `com.thinkhale.sideleaf`. The app and XCTest products are validated compile-only; no simulator was booted, so XCTest did not execute and runtime UI, physical iPhone/iPad, touch ink, Apple Pencil and microphone behavior remain unvalidated.
+This is native SwiftUI, SwiftData, UIKit and PencilKit source, not a WebView. Build `8` targets iPhone and iPad on iOS/iPadOS 26 under `com.thinkhale.sideleaf`, and adds two products alongside the app: a WidgetKit extension (`com.thinkhale.sideleaf.widget`) and a watchOS companion (`com.thinkhale.sideleaf.watchkitapp`). Build `8` has not been compiled: it was written on a Linux session with no Swift toolchain, no Xcode, no simulator and no device, so nothing below has been exercised. Earlier builds were validated compile-only; runtime UI, physical iPhone/iPad, touch ink, Apple Pencil, microphone, widget and watch behavior all remain unvalidated.
 
 Source includes a local notebook library and typed page editor, PencilKit ink serialization and PNG preview, native text rectangle hit testing in explicit Mark mode, and original-quote preservation. It includes email/password sign-in through the Sideleaf backend, a signed Better Auth bearer and last server-confirmed Terms version stored together in Keychain, and revision-based synchronization for typed text and semantic marks. It preserves the rest of each shared remote document rather than replacing unknown blocks or web ink. PencilKit freehand ink remains device-only, and guest pages require an explicit adoption action before they are uploaded to an account.
 
@@ -14,6 +14,43 @@ Build `6` also removes the old tap before reading the post-route-change format, 
 
 Build `7` addresses a separate Swift 6 isolation trap in the live microphone callback. Because `LiveTranscription` is main-actor isolated, its unannotated AVAudioEngine tap closure inherited main-actor isolation even though AVFoundation invokes that closure on a real-time audio queue. The callback is now explicitly `@Sendable` and captures only the thread-safe bridge, preventing `_swift_task_checkIsolatedSwift` from terminating the app on the first microphone buffer. [Apple Developer Technical Support documents this exact `AVAudioNodeTap::CheckEmitBuffer` failure and workaround](https://developer.apple.com/forums/thread/793455). Generic simulator and iPhoneOS builds pass with warnings treated as errors; physical-device confirmation remains required.
 
+## Build 8: the meeting is the product
+
+The app used to open on a notebook with a microphone button in the corner, which made Sideleaf read as a note app that can also transcribe. Build `8` inverts that. Sideleaf opens on a meeting; typing and ink are the second tab.
+
+- **Meeting tab.** One Start action, a kind (meeting, interview, class, one to one, call) and an optional minute of planning: what you want out of the conversation and the points that have to be covered.
+- **Live view.** Questions to ask now come first, what Sideleaf is keeping for you comes second, the plan points still uncovered come third, and the raw transcript is collapsed at the bottom. Each suggestion carries the sentence it came from and can be asked, kept or dismissed in one tap.
+- **Recap.** Stopping opens a review rather than a save dialog: edit any line, leave anything out, add reminders, then write it to a page.
+- **Notes tab.** The previous library, page editor, Type/Write/Mark/Select/Erase tools and PencilKit ink, unchanged. Its microphone button now starts a meeting attached to that page.
+
+`Sources/MeetingIntelligence.swift` turns transcript text into those suggestions with written rules over the words that were actually said: first-person commitments, requests made of someone, decisions, named dates (`Sources/MeetingDates.swift`), questions that never got a substantive answer, blockers, vague timing and quantities, figures worth reading back, unexplained acronyms, and plan points that have not come up. It is deterministic, runs on device, keeps the source sentence for every cue, and applies per-kind cooldowns and duplicate suppression so the live view stays quiet. Nothing here is a model inference, which keeps the existing product rule that questions use a clearly user-owned starter rather than AI inference.
+
+Saving a recap appends plain text to the page's typed notes and anchors each kept item to the exact words it came from, using the shared document contract's `follow-up`, `action` and `important` marks. A follow-up captured on iPhone therefore appears in the browser margin with its source quote intact, through the existing revision-based sync path. No new server route, schema or migration is involved.
+
+Reminders are local notifications scheduled by `UNUserNotificationCenter` from the recap, defaulting to a date Sideleaf resolved from the conversation. They are opt-in per item and never leave the device.
+
+## Home Screen widget, Control Center and Siri
+
+`Widget/` builds `SideleafWidget.appex`: a configurable Home Screen widget (small, medium and large), Lock Screen widgets (rectangular, circular and inline) and an iOS control for Control Center, the Lock Screen and the Action button. Idle, it offers Start for the kind the widget is configured with. Live, it shows the elapsed time, how many questions are waiting, the newest question and an End button.
+
+A widget process cannot open a microphone, so `StartMeetingIntent` and `StopMeetingIntent` set `openAppWhenRun` and record the request in the shared App Group; the app performs it when it comes forward. `Sources/SideleafShortcuts.swift` exposes the same two intents to Siri and Shortcuts.
+
+The widget reads `MeetingSnapshot`, a small record holding the phase, title, elapsed start, counts, the top few questions and the uncovered plan points. It never holds the transcript. A snapshot older than fifteen minutes is treated as stale and the widget falls back to its idle face, so an interrupted app cannot leave a timer running on the Home Screen.
+
+## Apple Watch companion
+
+`Watch/` builds a single-target watchOS app. The iPhone keeps the microphone and the cue engine; the watch is a remote control and a second screen. It offers Start with a kind, End, "Mark this moment", and the same top questions with an Asked button, and it taps the wrist when a new question arrives. Messages cross WatchConnectivity as JSON payloads, so only `Sendable` values cross a thread boundary; the transcript is never sent to the watch. When the phone is unreachable, a request falls back to `transferUserInfo` and the watch says so instead of pretending the meeting started.
+
+## Capability and entitlement requirements
+
+Build `8` needs three capabilities the earlier builds did not:
+
+- **App Groups** (`group.com.thinkhale.sideleaf`) on the app and the widget, declared in `Support/Sideleaf.entitlements` and `Support/SideleafWidget.entitlements`. The group must be created for the team in the Apple Developer portal, or automatic signing will fail. `MeetingSharedStore` degrades to a private container rather than crashing if the entitlement is missing; the widget then only ever shows its idle face.
+- **Background audio** (`UIBackgroundModes`, `Support/Sideleaf-Info.plist`), so a meeting keeps listening when the screen locks. Confirm the built `Info.plist` contains `UIBackgroundModes` as an array with `audio`, and confirm App Review expectations for a continuously listening app before submitting.
+- **Notifications**, requested the first time someone adds a reminder from a recap.
+
+`Support/` holds the Info.plist fragments and entitlements for all three targets. Each target also keeps `GENERATE_INFOPLIST_FILE`, so Xcode merges its generated keys into these files.
+
 ## Supplied branding
 
 `Sources/Assets.xcassets` bundles unmodified copies of the supplied artwork as `SideleafSymbol` (`Sideleaf icon 2.png`, 1254 x 1254), `SideleafWordmark` (`Sideleaf wordmark.png`, 2172 x 724), and `SideleafLockup` (`Sideleaf logo - no slogan.png`, 2172 x 724). The library toolbar uses the wordmark and the empty page uses the lockup, with original proportions and colors, accessible product labels, and a light paper background for contrast. The source PNGs retain their transparency and original bytes. `project.yml` includes the asset catalog through its existing `Sources` path.
@@ -24,14 +61,19 @@ The checked-in project opens and builds directly on a Mac with Xcode 26 or later
 
 ```sh
 cd native
+xcodegen generate
 xcodebuild -project Sideleaf.xcodeproj -scheme Sideleaf -destination 'generic/platform=iOS Simulator' build
 ```
 
+The `Sideleaf` scheme builds the widget extension and the watch app as embedded dependencies. The watch app also builds on its own with `-scheme SideleafWatch -destination 'generic/platform=watchOS Simulator'`.
+
 `project.yml` remains the declarative source for project settings. After changing it, install XcodeGen and run `xcodegen generate`, then commit the regenerated `Sideleaf.xcodeproj` files with the specification change.
 
-The first App Store release uses marketing version `1.0`; the current TestFlight candidate is build `7`. Update `MARKETING_VERSION` for a user-visible release and increment `CURRENT_PROJECT_VERSION` for every App Store Connect upload, then regenerate the checked-in project. Previously uploaded builds do not inherit later iPhone, sync, legal or microphone fixes; TestFlight must process build `7` for the isolation fix.
+The checked-in `project.pbxproj` for build `8` was written without XcodeGen, because the session that added the widget and watch targets had no Swift toolchain. Its object graph was validated structurally (every identifier defined once and referenced, sections balanced, no orphans), but it has not been opened by Xcode. Run `xcodegen generate` first on a Mac and commit the result; treat `project.yml` as authoritative if the two ever disagree.
 
-The checked-in project declares build `7`, bundle ID `com.thinkhale.sideleaf`, marketing version `1.0`, minimum OS `26.0`, device families `[1, 2]`, microphone and speech usage descriptions, and iPhone/iPad AppIcon entries. It also sets the Boolean `ITSAppUsesNonExemptEncryption` value to `false`, which answers App Store Connect's export-compliance prompt for the current app's OS-provided HTTPS and Keychain use. Export compliance remains the owner's responsibility: reassess that declaration before release if native cryptography, a cryptographic SDK, VPN behavior or other encryption capability is added.
+The first App Store release uses marketing version `1.0`; the current candidate is build `8`. Update `MARKETING_VERSION` for a user-visible release and increment `CURRENT_PROJECT_VERSION` for every App Store Connect upload, keeping the app, widget and watch targets on the same numbers, then regenerate the checked-in project. Previously uploaded builds do not inherit later iPhone, sync, legal or microphone fixes.
+
+The checked-in project declares build `8`, bundle IDs `com.thinkhale.sideleaf`, `com.thinkhale.sideleaf.widget` and `com.thinkhale.sideleaf.watchkitapp`, marketing version `1.0`, minimum OS `26.0` on both platforms, device families `[1, 2]` for iOS and `[4]` for watchOS, microphone and speech usage descriptions, and iPhone/iPad AppIcon entries. The watch app has no icon set yet, which App Store Connect will require before submission. It also sets the Boolean `ITSAppUsesNonExemptEncryption` value to `false`, which answers App Store Connect's export-compliance prompt for the current app's OS-provided HTTPS and Keychain use. Export compliance remains the owner's responsibility: reassess that declaration before release if native cryptography, a cryptographic SDK, VPN behavior or other encryption capability is added.
 
 For tests, choose an actually installed iPhone or iPad simulator identifier from `xcrun simctl list devices` and pass it as the destination to `xcodebuild test`. No simulator name is assumed. The app target uses the registered bundle identifier `com.thinkhale.sideleaf` with automatic signing for the ThinkHale team. Xcode may need to download or create the matching provisioning profile during the first physical-device build.
 
@@ -54,6 +96,14 @@ The hosted API origin is `https://sideleaf.vercel.app`, with authenticated route
 - Validate build `7` sign-in restoration, legal-version transitions, Keychain cleanup, explicit guest-page adoption, reconnect retries and two-client conflict recovery against the hosted API.
 - Upload only editable native ink plus portable artifacts through owner-authorized artifact routes; define origin/scale metadata and cross-client edit ownership. Those routes do not yet exist.
 - Validate the bounded on-device transcription pipeline on physical iPhone and iPad hardware, including permission denial, model availability, interruptions, route changes, backgrounding, finalization and microphone release.
+- Compile every target. Build `8` has never been through a Swift compiler, so its concurrency annotations, SwiftUI API use and the hand-written project file are all unverified.
+- Run `MeetingIntelligenceTests`, `MeetingDatesTests` and `MeetingRecapTests` in a booted simulator, then judge the cue rules against real conversations. The tests fix the contract; only listening to actual meetings shows whether the suggestions are worth reading.
+- Create the `group.com.thinkhale.sideleaf` App Group for the team and confirm the widget reads live meeting state from a device rather than falling back to its idle face.
+- Confirm the built `Info.plist` carries `UIBackgroundModes` as an array containing `audio`, then verify a meeting survives a locked screen, an incoming call and a Bluetooth route change, and that the microphone is released when it ends.
+- Verify the watch companion against a paired watch: start and stop from the wrist, the fallback when the phone is unreachable, haptics on a new question, and that starting from the watch while the phone is backgrounded either works or says plainly that it could not.
+- Confirm reminders fire, and that the recap's marks appear in the browser margin with their source quotes after the page syncs.
 - Connect server-authoritative allowances and StoreKit verified entitlements before assisted capture is available.
+
+Build `8` adds two optional properties to the `LocalPage` SwiftData model, `meetingKind` and `meetingEndedAt`, so the meeting tab can list recent meetings. Adding optional attributes is a lightweight migration, but it has not been exercised against a store created by an earlier build; verify that an upgrade over an existing install keeps its pages before shipping.
 
 Sideleaf is the product and target name. Its distribution bundle ID is `com.thinkhale.sideleaf`; SwiftData model names remain unchanged. Native speech requires iOS/iPadOS 26. Unsupported hardware, permissions, language or model availability produces an explicit unavailable result; there is no remote transcription fallback.

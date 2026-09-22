@@ -1494,5 +1494,5 @@ final class NotebookSync {
     }
 
     private static let titleLimit = 200
-    private static let personalBlockTextLimit = 30_000
+    static let personalBlockTextLimit = 30_000
 }
