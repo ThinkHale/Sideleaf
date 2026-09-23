@@ -531,21 +531,6 @@ final class LiveTranscription {
                 }
             }
         )
-
-        notificationTokens.append(
-            center.addObserver(
-                forName: UIApplication.didEnterBackgroundNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    await self?.interrupt(
-                        "Transcription stopped when Sideleaf moved to the background.",
-                        runID: id
-                    )
-                }
-            }
-        )
     }
 
     /// A media-services reset destroys the audio graph. The engine object cannot be used
