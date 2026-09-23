@@ -72,6 +72,10 @@ final class LiveTranscription {
     private var notificationTokens: [NSObjectProtocol] = []
     private var tapInstalled = false
     private var tapFormat: AVAudioFormat?
+    /// Optional second reader of the microphone. The engine allows one tap, so
+    /// voice attribution takes a copy from inside this one instead of
+    /// installing its own.
+    private var voiceSink: VoiceAudioSink?
     private var ownedReservedLocale: Locale?
     private var audioEngineIsInvalidated = false
     private var engineReconnects = 0
@@ -190,6 +194,12 @@ final class LiveTranscription {
             state = .stopped
             status = "Transcription is stopped."
         }
+    }
+
+    /// Attaches, or detaches, the buffer voice attribution reads from. Set it
+    /// before starting; a nil sink leaves the capture path exactly as it was.
+    func attachVoiceSink(_ sink: VoiceAudioSink?) {
+        voiceSink = sink
     }
 
     func resetTranscript() {
@@ -339,12 +349,16 @@ final class LiveTranscription {
         // AVFoundation invokes this callback on its real-time audio queue. An unannotated
         // closure created in this @MainActor type inherits main-actor isolation and Swift 6
         // traps on the first device buffer instead of reporting a catchable error.
+        voiceSink?.prepare(sampleRate: format.sampleRate)
         input.installTap(
             onBus: 0,
             bufferSize: tapBufferSize,
             format: format
-        ) { @Sendable [bridge] buffer, _ in
+        ) { @Sendable [bridge, voiceSink] buffer, _ in
+            // Transcription first, always. Attribution only ever gets a copy of
+            // what the transcriber already has.
             bridge.receive(buffer)
+            voiceSink?.receive(buffer)
         }
         tapInstalled = true
         tapFormat = format

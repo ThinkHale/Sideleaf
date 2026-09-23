@@ -622,6 +622,7 @@ private enum NativeAccountMode: String, CaseIterable, Identifiable {
 private struct NativeAccountSheet: View {
     @Query(sort: \LocalPage.updatedAt, order: .reverse) private var pages: [LocalPage]
     @Environment(\.modelContext) private var context
+    @Environment(MeetingSession.self) private var session
     @Environment(\.dismiss) private var dismiss
     @Environment(NotebookSync.self) private var sync
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -650,6 +651,7 @@ private struct NativeAccountSheet: View {
                 case .signedInOffline(let identity):
                     signedInContent(identity, offline: true)
                 }
+                voiceSection
                 if sync.hasPendingDeletedAccountPageCleanup {
                     deletedAccountPageCleanupSection
                 }
@@ -707,6 +709,25 @@ private struct NativeAccountSheet: View {
         }
         .interactiveDismissDisabled(working)
         .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+    }
+
+    /// Voice attribution is device-local, so it sits outside the account state
+    /// and works whether or not anyone is signed in.
+    private var voiceSection: some View {
+        Section {
+            NavigationLink {
+                VoiceProfileView()
+            } label: {
+                LabeledContent("Your voice") {
+                    Text(session.recognizer.profile == nil ? "Not set up" : "Ready")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Who is talking")
+        } footer: {
+            Text("Teach Sideleaf your voice so a promise you make and a promise they make stop landing on the same list.")
+        }
     }
 
     @ViewBuilder

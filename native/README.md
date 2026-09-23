@@ -33,6 +33,20 @@ Saving a recap appends plain text to the page's typed notes and anchors each kep
 
 Reminders are local notifications scheduled by `UNUserNotificationCenter` from the recap, defaulting to a date Sideleaf resolved from the conversation. They are opt-in per item and never leave the device.
 
+## Telling your voice from the room's
+
+Every useful thing a meeting produces belongs to someone, and until build `8` Sideleaf assumed it all belonged to the person holding the phone. A promise the client made read as a task you owed. Cues that describe work now carry an owner: a promise belongs to whoever made it, a request to whoever it was made of, and the recap splits "Your next steps" from "What they owe you".
+
+Who is speaking comes from an optional voice profile, recorded once in Settings under "Your voice". It takes about 25 seconds of ordinary speech. `SpeakerRecognizing` is the seam; `FluidAudioSpeakerRecognizer` is the only file that imports the speech library, and the model lives inside an actor so Core ML inference never touches the main actor.
+
+There is no Apple API for this. `SpeechAnalyzer` on iOS 26 exposes `SpeechTranscriber` and `SpeechDetector` and neither returns who was talking, so attribution uses [FluidAudio](https://github.com/FluidInference/FluidAudio) (Sortformer: four stable speaker slots, pyannote and WeSpeaker models compiled for the Neural Engine). It is the native app's first third-party dependency, pinned to its minor series in `project.yml` because the library is pre-1.0.
+
+AVAudioEngine allows one tap per bus and the transcriber owns it, so attribution never installs its own. `LiveTranscription` hands every buffer to the transcriber first and then copies it into `VoiceAudioSink`, a bounded ring buffer that follows the same rules the microphone crash fixes established: the render thread never waits on its lock, never allocates, and drops a buffer rather than stalling. With no voice profile recorded, nothing is attached at all and the capture path is byte for byte what it was.
+
+Attribution is deliberately reticent. It answers for the stretch of audio that produced the text being read, allowing for how far a finalised transcript trails the room, and returns nothing at all unless one voice held at least 70 per cent of that window. Anything it will not answer stays marked "Assumed yours" and is one tap from being moved.
+
+The voice profile is the one recording Sideleaf keeps. It sits in the app container with complete file protection and is deleted from the same settings screen. Meeting audio is still never written to disk, and the microphone purpose string now says both of those things. Other people in the room are told apart from you for the length of the meeting and are never enrolled or stored.
+
 ## Home Screen widget, Control Center and Siri
 
 `Widget/` builds `SideleafWidget.appex`: a configurable Home Screen widget (small, medium and large), Lock Screen widgets (rectangular, circular and inline) and an iOS control for Control Center, the Lock Screen and the Action button. Idle, it offers Start for the kind the widget is configured with. Live, it shows the elapsed time, how many questions are waiting, the newest question and an End button.
@@ -112,7 +126,9 @@ The hosted API origin is `https://sideleaf.vercel.app`, with authenticated route
 - Validate build `7` sign-in restoration, legal-version transitions, Keychain cleanup, explicit guest-page adoption, reconnect retries and two-client conflict recovery against the hosted API.
 - Upload only editable native ink plus portable artifacts through owner-authorized artifact routes; define origin/scale metadata and cross-client edit ownership. Those routes do not yet exist.
 - Validate the bounded on-device transcription pipeline on physical iPhone and iPad hardware, including permission denial, model availability, interruptions, route changes, backgrounding, finalization and microphone release.
-- Compile every target. Build `8` has never been through a Swift compiler, so its concurrency annotations, SwiftUI API use and the hand-written project file are all unverified.
+- Exercise voice attribution on a device with two people in the room, which is the only way to know whether it works. Nothing about it has run. The adapter was written against FluidAudio's documented signatures without the library present, so `FluidAudioSpeakerRecognizer` is the first file to check if the build breaks, and `SpeakerSpan.identifier` is the specific line to check if attribution compiles but never matches: it compares whatever `segment.speakerId` describes itself as against the name the profile was enrolled under, and the settings screen prints the identifiers actually heard so the real format is visible.
+- Confirm the audio fan-out costs the transcriber nothing: a meeting with a profile enrolled should transcribe exactly as well as one without.
+- Check that the 70 per cent threshold and the 1.5 second transcript lag are right on real speech. Both are named constants in `FluidAudioSpeakerRecognizer` and `MeetingSession`, and both were chosen by reasoning rather than measurement.
 - Run `MeetingIntelligenceTests`, `MeetingDatesTests` and `MeetingRecapTests` in a booted simulator, then judge the cue rules against real conversations. The tests fix the contract; only listening to actual meetings shows whether the suggestions are worth reading.
 - Create the `group.com.thinkhale.sideleaf` App Group for the team and confirm the widget reads live meeting state from a device rather than falling back to its idle face.
 - Confirm the built `Info.plist` carries `UIBackgroundModes` as an array containing `audio`, then verify a meeting survives a locked screen, an incoming call and a Bluetooth route change, and that the microphone is released when it ends.

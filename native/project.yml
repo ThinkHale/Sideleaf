@@ -10,12 +10,18 @@ settings:
     TARGETED_DEVICE_FAMILY: '1,2'
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: MZ3635323W
+packages:
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio.git
+    minorVersion: 0.12.4
 targets:
   Sideleaf:
     type: application
     platform: iOS
     sources: [Sources, Shared]
     dependencies:
+      - package: FluidAudio
+        product: FluidAudio
       - target: SideleafWidget
         embed: true
       - target: SideleafWatch
@@ -37,7 +43,7 @@ targets:
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_NSMicrophoneUsageDescription: Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: Sideleaf transcribes meetings on this device and never saves meeting audio. The optional voice profile you record in settings is kept on this device until you delete it.
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight

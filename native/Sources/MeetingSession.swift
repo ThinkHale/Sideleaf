@@ -40,6 +40,8 @@ final class MeetingSession {
     var currentSpeaker: MeetingSpeaker = .unknown
 
     let transcription: LiveTranscription
+    /// Tells your voice from the room's, when a profile has been recorded.
+    let recognizer: any SpeakerRecognizing
 
     @ObservationIgnored private var engine = MeetingCueEngine()
     @ObservationIgnored private var preferences = MeetingPreferencesStore.load()
@@ -47,6 +49,10 @@ final class MeetingSession {
     private(set) var mutedKinds: [MeetingCue.Kind] = []
     @ObservationIgnored private var pulseTask: Task<Void, Never>?
     @ObservationIgnored private var lastWidgetPublish = Date.distantPast
+    @ObservationIgnored private let voiceSink = VoiceAudioSink()
+    /// Where the previous pass through the transcript stopped, so attribution
+    /// can be asked about exactly the stretch of speech that produced it.
+    @ObservationIgnored private var lastPulseElapsed: TimeInterval = 0
     @ObservationIgnored private var publish: (MeetingSnapshot) -> Void
 
     /// How often the session reads new transcript text. Fast enough to feel
@@ -54,12 +60,18 @@ final class MeetingSession {
     static let pulseInterval = Duration.milliseconds(1_200)
     /// The widget timeline is reloaded no more often than this while listening.
     static let widgetPublishInterval: TimeInterval = 20
+    /// Roughly how far behind the room the finalised transcript runs. Speech is
+    /// attributed to the stretch of audio that produced it, not to the moment
+    /// its text arrived.
+    static let transcriptLag: TimeInterval = 1.5
 
     init(
         transcription: LiveTranscription = LiveTranscription(),
+        recognizer: any SpeakerRecognizing = FluidAudioSpeakerRecognizer.shared,
         publish: @escaping (MeetingSnapshot) -> Void = { _ in }
     ) {
         self.transcription = transcription
+        self.recognizer = recognizer
         self.publish = publish
         engine = MeetingCueEngine(mutedKinds: preferences.mutedKinds)
         mutedKinds = engine.mutedKinds.sorted { $0.rawValue < $1.rawValue }
@@ -139,8 +151,11 @@ final class MeetingSession {
         startFailure = nil
         endedAt = nil
         startedAt = Date()
+        lastPulseElapsed = 0
+        currentSpeaker = .unknown
         phase = .preparing
         publishSnapshot(force: true)
+        beginVoiceAttribution()
         beginPulse()
         await transcription.start(clearTranscript: true)
         if !transcription.isListening, didFailToStart {
@@ -149,6 +164,26 @@ final class MeetingSession {
         }
         phase = transcription.isListening ? .live : .preparing
         publishSnapshot(force: true)
+    }
+
+    /// Hands the transcriber a second reader of the microphone, but only when a
+    /// voice profile exists. With no profile nothing is attached and the
+    /// capture path is byte for byte what it was.
+    private func beginVoiceAttribution() {
+        voiceSink.reset()
+        guard recognizer.profile != nil else {
+            transcription.attachVoiceSink(nil)
+            return
+        }
+        transcription.attachVoiceSink(voiceSink)
+        Task { await recognizer.beginMeeting(sink: voiceSink) }
+    }
+
+    private func endVoiceAttribution() {
+        recognizer.endMeeting()
+        transcription.attachVoiceSink(nil)
+        voiceSink.reset()
+        currentSpeaker = .unknown
     }
 
     private var didFailToStart: Bool {
@@ -162,6 +197,7 @@ final class MeetingSession {
     private func abandonStart() {
         pulseTask?.cancel()
         pulseTask = nil
+        endVoiceAttribution()
         startFailure = transcription.errorMessage
             ?? "Sideleaf could not start listening on this device."
         phase = .idle
@@ -183,6 +219,7 @@ final class MeetingSession {
         pulseTask?.cancel()
         pulseTask = nil
         let ended = Date()
+        resolveSpeaker(upTo: ended.timeIntervalSince(startedAt ?? ended))
         endedAt = ended
         let closing = engine.finish(
             transcript: transcription.transcript,
@@ -191,6 +228,7 @@ final class MeetingSession {
             speaker: currentSpeaker
         )
         absorb(closing)
+        endVoiceAttribution()
         phase = .ended
         publishSnapshot(force: true)
     }
@@ -199,6 +237,8 @@ final class MeetingSession {
     func reset() {
         pulseTask?.cancel()
         pulseTask = nil
+        endVoiceAttribution()
+        lastPulseElapsed = 0
         phase = .idle
         cues = []
         startedAt = nil
@@ -334,6 +374,7 @@ final class MeetingSession {
         guard isActive else { return }
         if transcription.isListening, phase == .preparing { phase = .live }
         noticeInterruption()
+        resolveSpeaker(upTo: elapsed)
         let changes = engine.ingest(
             transcript: transcription.transcript,
             elapsed: elapsed,
@@ -342,6 +383,24 @@ final class MeetingSession {
         )
         absorb(changes)
         publishSnapshot(force: !changes.isEmpty)
+    }
+
+    /// Asks the recogniser who held the floor during the audio that produced
+    /// the text about to be read, allowing for how far the transcript trails
+    /// the room.
+    private func resolveSpeaker(upTo elapsed: TimeInterval) {
+        defer { lastPulseElapsed = elapsed }
+        guard recognizer.profile != nil else {
+            currentSpeaker = .unknown
+            return
+        }
+        let end = max(0, elapsed - Self.transcriptLag)
+        let start = max(0, min(lastPulseElapsed - Self.transcriptLag, end))
+        guard end > start else {
+            currentSpeaker = .unknown
+            return
+        }
+        currentSpeaker = recognizer.speaker(during: start...end)
     }
 
     private func noticeInterruption() {

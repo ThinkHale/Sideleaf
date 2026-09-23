@@ -24,6 +24,7 @@
 		454486EC3A9C459A6F3A8921 /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
 		495BA5BB31ED56CFFAC3782F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8E5001589642721682DB3DDB /* Assets.xcassets */; };
 		4B316805592F213538D17833 /* CloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403F1D5E2F7B717AA36B7847 /* CloudModels.swift */; };
+		4FB20DC57107927CD0608605 /* FluidAudioSpeakerRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D32D93BE673ECE133835930D /* FluidAudioSpeakerRecognizer.swift */; };
 		51E9A44744DD63CFF8BA4A37 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F96AC29CC5F58079D083E7 /* WatchLink.swift */; };
 		52690AF218DEDD98F8DE4A66 /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
 		52BE3D7DBD8CFFBF64005129 /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
@@ -50,8 +51,11 @@
 		A932873E1BE0218759135545 /* MeetingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58D0637119C7CB0512800E5 /* MeetingIntents.swift */; };
 		AF74FB7E0888A2ABFBE1ECE2 /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */; };
 		B29E1437BFB2A915E86F557A /* SideleafShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C959F239AE5943177C543F /* SideleafShortcuts.swift */; };
+		B575FF881EE83699C7D5A2AA /* VoiceAudioSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9478C9DC5B6FF98AD08D359F /* VoiceAudioSink.swift */; };
 		B5DCB4E5A37EF4A704C20F6F /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
 		C04F5F391EFC1C3598560FFB /* NotebookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB43D9C9BE0FD58A0EAE733C /* NotebookApp.swift */; };
+		C63399BF1662A35FF0125462 /* VoiceProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9471066E52572605458123DA /* VoiceProfile.swift */; };
+		C71728FC2513BDD36BC50A70 /* VoiceProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D59082154D1CEF372AC5C42 /* VoiceProfileView.swift */; };
 		C7AD72D879297AB1095C32EE /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
 		C7FD5C8F913055CCDD324BBE /* MeetingRecapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7627768B68ED9A472A0F01 /* MeetingRecapTests.swift */; };
 		CE0416DD95A1609FB543CB39 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
@@ -61,6 +65,7 @@
 		E882E3DE97C14A7400BF7F4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42190938D87C518EDC721D57 /* Assets.xcassets */; };
 		ECA96F4E70EC775690BFAE9F /* SideleafWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E6E05FC16B544393A370D2 /* SideleafWidgetBundle.swift */; };
 		F57294FE72549A01A12FEF47 /* WatchMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBA8825B7843230D62C28EEB /* WatchMessage.swift */; };
+		FE5C78FF77D74214A4AD62A3 /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = B5C01E9372C9880FD5BA06A8 /* FluidAudio */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -133,6 +138,7 @@
 		5B961E1224C3D238D3359278 /* Widget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Widget-Info.plist"; sourceTree = "<group>"; };
 		5FB26304FB4707BAC16D3D10 /* AnchorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorTests.swift; sourceTree = "<group>"; };
 		6CBF925662591252328934FB /* MeetingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingWidget.swift; sourceTree = "<group>"; };
+		6D59082154D1CEF372AC5C42 /* VoiceProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceProfileView.swift; sourceTree = "<group>"; };
 		70EC784D5560587FF198BAF0 /* MeetingReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminders.swift; sourceTree = "<group>"; };
 		735687585A9125635C0FA7C1 /* MeetingRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecapView.swift; sourceTree = "<group>"; };
 		7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
@@ -141,6 +147,8 @@
 		8E5001589642721682DB3DDB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntelligenceTests.swift; sourceTree = "<group>"; };
 		92784A3C70BDB97D40072466 /* SideleafWatch.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; includeInIndex = 0; path = SideleafWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9471066E52572605458123DA /* VoiceProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceProfile.swift; sourceTree = "<group>"; };
+		9478C9DC5B6FF98AD08D359F /* VoiceAudioSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAudioSink.swift; sourceTree = "<group>"; };
 		A0C466B785C2509CACD27C1F /* Watch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Watch-Info.plist"; sourceTree = "<group>"; };
 		AC72AAAA32842B2E92E1FB4B /* SideleafTests.xctest */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; includeInIndex = 0; path = SideleafTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0C959F239AE5943177C543F /* SideleafShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideleafShortcuts.swift; sourceTree = "<group>"; };
@@ -148,6 +156,7 @@
 		C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingControlWidget.swift; sourceTree = "<group>"; };
 		CBA8825B7843230D62C28EEB /* WatchMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchMessage.swift; sourceTree = "<group>"; };
 		D1CAB2B521B9A8D76AD327EE /* MeetingPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPreferences.swift; sourceTree = "<group>"; };
+		D32D93BE673ECE133835930D /* FluidAudioSpeakerRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidAudioSpeakerRecognizer.swift; sourceTree = "<group>"; };
 		D466D9CBC20D08053DA5617F /* CloudDocumentBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudDocumentBridgeTests.swift; sourceTree = "<group>"; };
 		D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCue.swift; sourceTree = "<group>"; };
 		E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDatesTests.swift; sourceTree = "<group>"; };
@@ -163,6 +172,17 @@
 		FB43D9C9BE0FD58A0EAE733C /* NotebookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookApp.swift; sourceTree = "<group>"; };
 		FF61B3A423D5228601D782BA /* SideleafWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SideleafWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		57A904A5460D7566BB324E32 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FE5C78FF77D74214A4AD62A3 /* FluidAudio in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		B46A6AFB1DC88CE23F6E63F1 /* Shared */ = {
@@ -184,6 +204,7 @@
 				1EE657EA5EB053C5B7F5DC4A /* Anchors.swift */,
 				42190938D87C518EDC721D57 /* Assets.xcassets */,
 				403F1D5E2F7B717AA36B7847 /* CloudModels.swift */,
+				D32D93BE673ECE133835930D /* FluidAudioSpeakerRecognizer.swift */,
 				7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */,
 				E509783D7AD41F888F8A44C4 /* LiveTranscription.swift */,
 				414A4CF78AE261CE3F821E74 /* MeetingDates.swift */,
@@ -202,6 +223,9 @@
 				B5269DB0737C45113E8993C7 /* OnDeviceReadiness.swift */,
 				20BC2C39FF24109F08B5E0AC /* SideleafBrand.swift */,
 				B0C959F239AE5943177C543F /* SideleafShortcuts.swift */,
+				9478C9DC5B6FF98AD08D359F /* VoiceAudioSink.swift */,
+				9471066E52572605458123DA /* VoiceProfile.swift */,
+				6D59082154D1CEF372AC5C42 /* VoiceProfileView.swift */,
 				47F96AC29CC5F58079D083E7 /* WatchLink.swift */,
 			);
 			path = Sources;
@@ -284,6 +308,7 @@
 			buildConfigurationList = BBF1308D89B96946FE898937 /* Build configuration list for PBXNativeTarget "Sideleaf" */;
 			buildPhases = (
 				7A2692BBA3706731274B7E00 /* Sources */,
+				57A904A5460D7566BB324E32 /* Frameworks */,
 				61759B649A9FF3AB5F090C77 /* Resources */,
 				956CAFA141F46E60CD103AF7 /* Embed Foundation Extensions */,
 				FBDC99C13533ACB0187A2C4D /* Embed Watch Content */,
@@ -296,6 +321,7 @@
 			);
 			name = Sideleaf;
 			packageProductDependencies = (
+				B5C01E9372C9880FD5BA06A8 /* FluidAudio */,
 			);
 			productName = Sideleaf;
 			productReference = 3D1B2F1E70D8B7AF004E8916 /* Sideleaf.app */;
@@ -391,6 +417,9 @@
 			mainGroup = BD661642B9D8C6DD6119DFE8;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			packageReferences = (
+				817E34B5BF595496F6AF7001 /* XCRemoteSwiftPackageReference "FluidAudio" */,
+			);
 			productRefGroup = 2FBFC5F8F3603883048A374C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -429,6 +458,7 @@
 			files = (
 				E5CA1D9CF93185B83D82EDB3 /* Anchors.swift in Sources */,
 				4B316805592F213538D17833 /* CloudModels.swift in Sources */,
+				4FB20DC57107927CD0608605 /* FluidAudioSpeakerRecognizer.swift in Sources */,
 				AF74FB7E0888A2ABFBE1ECE2 /* KeychainSessionStore.swift in Sources */,
 				11ED5006876EC2F1A78201C8 /* LiveTranscription.swift in Sources */,
 				52690AF218DEDD98F8DE4A66 /* MeetingCue.swift in Sources */,
@@ -452,6 +482,9 @@
 				A164BC5E1B2EE6684E129FC8 /* OnDeviceReadiness.swift in Sources */,
 				6027D678BDBB9A0F86DA5EE2 /* SideleafBrand.swift in Sources */,
 				B29E1437BFB2A915E86F557A /* SideleafShortcuts.swift in Sources */,
+				B575FF881EE83699C7D5A2AA /* VoiceAudioSink.swift in Sources */,
+				C63399BF1662A35FF0125462 /* VoiceProfile.swift in Sources */,
+				C71728FC2513BDD36BC50A70 /* VoiceProfileView.swift in Sources */,
 				51E9A44744DD63CFF8BA4A37 /* WatchLink.swift in Sources */,
 				F57294FE72549A01A12FEF47 /* WatchMessage.swift in Sources */,
 			);
@@ -680,7 +713,7 @@
 				INFOPLIST_FILE = Support/Sideleaf-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf transcribes meetings on this device and never saves meeting audio. The optional voice profile you record in settings is kept on this device until you delete it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -708,7 +741,7 @@
 				INFOPLIST_FILE = Support/Sideleaf-Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sideleaf;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf uses the microphone for live in-person transcription. Audio is processed on this device and is not saved.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sideleaf transcribes meetings on this device and never saves meeting audio. The optional voice profile you record in settings is kept on this device until you delete it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sideleaf transcribes microphone audio on this device into editable meeting notes. Audio is not saved.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -878,6 +911,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		817E34B5BF595496F6AF7001 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.12.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B5C01E9372C9880FD5BA06A8 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 817E34B5BF595496F6AF7001 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D99282BAF0EE3C46461CC5A9 /* Project object */;
 }
