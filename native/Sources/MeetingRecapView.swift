@@ -93,9 +93,12 @@ struct MeetingRecapView: View {
         section(
             MeetingRecapBuilder.nextStepsHeading,
             nil,
-            session.cues.filter {
-                $0.kind == .commitment || $0.kind == .request || $0.kind == .deadline
-            }
+            session.cues.filter { isWork($0) && $0.owedBy != .other }
+        )
+        section(
+            MeetingRecapBuilder.theirStepsHeading,
+            nil,
+            session.cues.filter { isWork($0) && $0.owedBy == .other }
         )
         section(
             MeetingRecapBuilder.decidedHeading,
@@ -183,6 +186,9 @@ struct MeetingRecapView: View {
                                 .controlSize(.small)
                         }
                     }
+                    if included, cue.carriesWork {
+                        ownerControls(cue)
+                    }
                     if included, cue.role == .remember {
                         reminderControls(cue)
                     }
@@ -193,6 +199,34 @@ struct MeetingRecapView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(included ? 0.85 : 0.4), in: RoundedRectangle(cornerRadius: 12))
         .opacity(included ? 1 : 0.6)
+    }
+
+    private func isWork(_ cue: MeetingCue) -> Bool {
+        cue.kind == .commitment || cue.kind == .request || cue.kind == .deadline
+    }
+
+    /// Whose job this is. Sideleaf guesses; the person decides.
+    @ViewBuilder
+    private func ownerControls(_ cue: MeetingCue) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker(
+                "Who owes this",
+                selection: Binding(
+                    get: { cue.owedBy == .other ? MeetingSpeaker.other : .you },
+                    set: { session.setOwner($0, for: cue) }
+                )
+            ) {
+                Text("Mine").tag(MeetingSpeaker.you)
+                Text("Theirs").tag(MeetingSpeaker.other)
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 220)
+            if cue.attributionSource == .assumed {
+                Text("Assumed, because Sideleaf could not tell who was speaking.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     @ViewBuilder

@@ -67,6 +67,11 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
     /// that was finally named, the decision that replaced it. Always the words
     /// that caused the change, never a summary of them.
     var resolution: String?
+    /// Who owes the action this cue describes. Optional because cues recorded
+    /// before Sideleaf could attribute anything carry no answer.
+    var owner: MeetingSpeaker?
+    /// How `owner` was decided.
+    var ownerSource: SpeakerSource?
 
     init(
         id: UUID = UUID(),
@@ -78,7 +83,9 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
         dueDate: Date? = nil,
         state: State = .open,
         priority: Int = 50,
-        resolution: String? = nil
+        resolution: String? = nil,
+        owner: MeetingSpeaker? = nil,
+        ownerSource: SpeakerSource? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -90,10 +97,22 @@ struct MeetingCue: Identifiable, Codable, Equatable, Sendable {
         self.state = state
         self.priority = priority
         self.resolution = resolution
+        self.owner = owner
+        self.ownerSource = ownerSource
     }
 
     var role: Role { kind.role }
-    var label: String { kind.label }
+
+    /// Who owes this, with `unknown` standing for "nobody has said".
+    var owedBy: MeetingSpeaker { owner ?? .unknown }
+
+    var attributionSource: SpeakerSource { ownerSource ?? .assumed }
+
+    /// True when the cue describes work someone has to do, so the question of
+    /// whose work it is actually arises.
+    var carriesWork: Bool { kind == .commitment || kind == .request }
+
+    var label: String { kind.label(owedBy: owedBy) }
     var symbol: String { kind.symbol }
     /// The web contract's annotation kind used when this cue is saved.
     var annotationKind: String { kind.annotationKind }
@@ -123,13 +142,26 @@ extension MeetingCue.Kind: Identifiable {
         }
     }
 
-    var label: String {
+    var label: String { label(owedBy: .unknown) }
+
+    /// The heading on a card. Work changes its name depending on who owes it,
+    /// because "you said you would" and "they said they would" are different
+    /// facts about the same sentence.
+    func label(owedBy owner: MeetingSpeaker) -> String {
         switch self {
         case .ask: "Ask"
         case .unanswered: "Unanswered"
         case .clarify: "Pin down"
-        case .commitment: "You said you would"
-        case .request: "Asked of someone"
+        case .commitment:
+            switch owner {
+            case .you, .unknown: "You said you would"
+            case .other: "They said they would"
+            }
+        case .request:
+            switch owner {
+            case .you: "You were asked"
+            case .other, .unknown: "You asked them"
+            }
         case .deadline: "Date named"
         case .decision: "Decided"
         case .figure: "Check the figure"

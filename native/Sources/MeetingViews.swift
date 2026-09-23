@@ -680,7 +680,28 @@ struct CueCardView: View {
                     .foregroundStyle(Color.sideleafOlive)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if cue.carriesWork, cue.attributionSource == .assumed {
+                Text("Assumed yours. Tap Yours to move it to them.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 8) {
+                if cue.carriesWork {
+                    Button {
+                        session.setOwner(cue.owedBy == .other ? .you : .other, for: cue)
+                    } label: {
+                        Label(
+                            cue.owedBy == .other ? "Theirs" : "Yours",
+                            systemImage: "arrow.left.arrow.right"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel(
+                        cue.owedBy == .other
+                            ? "They owe this. Tap to make it yours."
+                            : "You owe this. Tap to make it theirs."
+                    )
+                }
                 if cue.state == .resolved {
                     Button(cue.role == .ask ? "Ask anyway" : "Keep it anyway") {
                         session.reopen(cue)

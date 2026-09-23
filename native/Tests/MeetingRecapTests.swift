@@ -158,6 +158,43 @@ final class MeetingRecapTests: XCTestCase {
         XCTAssertTrue(result.text.contains("Answered: Friday"))
     }
 
+    func testWorkTheySignedUpForGetsItsOwnHeading() {
+        let yours = MeetingCue(
+            kind: .commitment,
+            prompt: "Send the deck",
+            quote: "I'll send the deck.",
+            offset: 10,
+            owner: .you,
+            ownerSource: .voice
+        )
+        let theirs = MeetingCue(
+            kind: .commitment,
+            prompt: "Send the signed contract",
+            quote: "I'll send the signed contract.",
+            offset: 20,
+            owner: .other,
+            ownerSource: .voice
+        )
+        let text = draft([yours, theirs]).text
+        XCTAssertTrue(text.contains(MeetingRecapBuilder.nextStepsHeading))
+        XCTAssertTrue(text.contains(MeetingRecapBuilder.theirStepsHeading))
+        let mine = text.components(separatedBy: MeetingRecapBuilder.theirStepsHeading)[0]
+        XCTAssertTrue(mine.contains("Send the deck"))
+        XCTAssertFalse(mine.contains("Send the signed contract"))
+    }
+
+    func testUnattributedWorkStaysOnYourList() {
+        let cue = MeetingCue(
+            kind: .commitment,
+            prompt: "Send the deck",
+            quote: "I'll send the deck.",
+            offset: 10
+        )
+        let text = draft([cue]).text
+        XCTAssertTrue(text.contains(MeetingRecapBuilder.nextStepsHeading))
+        XCTAssertFalse(text.contains(MeetingRecapBuilder.theirStepsHeading))
+    }
+
     func testDurationReadsTheWayAPersonWouldSayIt() {
         XCTAssertEqual(MeetingRecapBuilder.durationText(20), "under a minute")
         XCTAssertEqual(MeetingRecapBuilder.durationText(600), "10 min")

@@ -34,6 +34,7 @@ enum MeetingRecapBuilder {
     static let questionsHeading = "Questions to ask or send"
     static let answeredHeading = "Answered in the meeting"
     static let nextStepsHeading = "Your next steps"
+    static let theirStepsHeading = "What they owe you"
     static let decidedHeading = "Decided"
     static let reversedHeading = "Reversed later"
     static let markedHeading = "Moments you kept"
@@ -64,9 +65,13 @@ enum MeetingRecapBuilder {
         let asks = kept.filter { $0.role == .ask && $0.kind != .coverage }
         let questions = asks.filter { $0.state != .resolved }.sorted { $0.offset < $1.offset }
         let answered = asks.filter { $0.state == .resolved }.sorted { $0.offset < $1.offset }
-        let steps = kept
+        // Work splits by who owes it. A promise the other side made is not a
+        // task on your list, and putting it there is how a recap starts lying.
+        let work = kept
             .filter { $0.kind == .commitment || $0.kind == .request || $0.kind == .deadline }
             .sorted { $0.offset < $1.offset }
+        let steps = work.filter { $0.owedBy != .other }
+        let theirSteps = work.filter { $0.owedBy == .other }
         let settledDecisions = kept.filter { $0.kind == .decision }
         let decisions = settledDecisions
             .filter { $0.state != .resolved }
@@ -81,13 +86,16 @@ enum MeetingRecapBuilder {
 
         section(questionsHeading, questions, into: &builder)
         section(nextStepsHeading, steps, into: &builder)
+        section(theirStepsHeading, theirSteps, into: &builder)
         section(decidedHeading, decisions, into: &builder)
         section(markedHeading, marked, into: &builder)
         section(answeredHeading, answered, into: &builder)
         section(reversedHeading, reversed, into: &builder)
         section(notCoveredHeading, uncovered, into: &builder)
 
-        let everything = [questions, steps, decisions, marked, answered, reversed, uncovered]
+        let everything = [
+            questions, steps, theirSteps, decisions, marked, answered, reversed, uncovered,
+        ]
         if everything.allSatisfy(\.isEmpty) {
             builder.blank()
             builder.line("Nothing was kept from this meeting.")

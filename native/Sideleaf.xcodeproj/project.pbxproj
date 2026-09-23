@@ -30,8 +30,10 @@
 		553F5B31D2FD7EB0FA60E759 /* MeetingReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EC784D5560587FF198BAF0 /* MeetingReminders.swift */; };
 		592737F6775600F8159E4764 /* MeetingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBF925662591252328934FB /* MeetingWidget.swift */; };
 		5E97E0A6B09F40056F13B69A /* MeetingSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */; };
+		600D71A1EC50E3F5C205EA95 /* MeetingSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0944C4BAF9EEEF3079E273 /* MeetingSpeaker.swift */; };
 		6027D678BDBB9A0F86DA5EE2 /* SideleafBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BC2C39FF24109F08B5E0AC /* SideleafBrand.swift */; };
 		68D00FC9DAB7D43DE5198553 /* AnchorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FB26304FB4707BAC16D3D10 /* AnchorTests.swift */; };
+		6B36A0D8A8B7893C93DAC944 /* MeetingSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0944C4BAF9EEEF3079E273 /* MeetingSpeaker.swift */; };
 		6DD519906DB79808094D927E /* MeetingDatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E044AF70F015EF7DDA2AB9D7 /* MeetingDatesTests.swift */; };
 		6F4BBBCFFEC527D6957FB986 /* MeetingControlWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = C061458FBA06470D6C5E0D36 /* MeetingControlWidget.swift */; };
 		786C851E2D158F24537B84A2 /* MeetingCue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D556CCC46AB12B4C9EBF8800 /* MeetingCue.swift */; };
@@ -54,6 +56,7 @@
 		C7FD5C8F913055CCDD324BBE /* MeetingRecapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7627768B68ED9A472A0F01 /* MeetingRecapTests.swift */; };
 		CE0416DD95A1609FB543CB39 /* MeetingKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0948407330F6DDCE2073AB31 /* MeetingKind.swift */; };
 		D439602DE4230E8C755255E0 /* MeetingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F219633D3C0D2222757D537 /* MeetingViews.swift */; };
+		E18A54EE324EB1B33E62C35F /* MeetingSpeaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0944C4BAF9EEEF3079E273 /* MeetingSpeaker.swift */; };
 		E5CA1D9CF93185B83D82EDB3 /* Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE657EA5EB053C5B7F5DC4A /* Anchors.swift */; };
 		E882E3DE97C14A7400BF7F4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42190938D87C518EDC721D57 /* Assets.xcassets */; };
 		ECA96F4E70EC775690BFAE9F /* SideleafWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59E6E05FC16B544393A370D2 /* SideleafWidgetBundle.swift */; };
@@ -133,6 +136,7 @@
 		70EC784D5560587FF198BAF0 /* MeetingReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminders.swift; sourceTree = "<group>"; };
 		735687585A9125635C0FA7C1 /* MeetingRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRecapView.swift; sourceTree = "<group>"; };
 		7CD7D745756DB6B5E5CAF8D7 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
+		7E0944C4BAF9EEEF3079E273 /* MeetingSpeaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSpeaker.swift; sourceTree = "<group>"; };
 		87FB02E03A6A57301C08DB42 /* Sideleaf.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Sideleaf.entitlements; sourceTree = "<group>"; };
 		8E5001589642721682DB3DDB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		914798F4AD628DCED76CA76F /* MeetingIntelligenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIntelligenceTests.swift; sourceTree = "<group>"; };
@@ -168,6 +172,7 @@
 				E58D0637119C7CB0512800E5 /* MeetingIntents.swift */,
 				0948407330F6DDCE2073AB31 /* MeetingKind.swift */,
 				4CE94EEE4139B22B0B46ED2E /* MeetingSnapshot.swift */,
+				7E0944C4BAF9EEEF3079E273 /* MeetingSpeaker.swift */,
 				CBA8825B7843230D62C28EEB /* WatchMessage.swift */,
 			);
 			path = Shared;
@@ -438,6 +443,7 @@
 				409740663B7AF516B23CE692 /* MeetingSaving.swift in Sources */,
 				414147871586D1F2D1BA1495 /* MeetingSession.swift in Sources */,
 				454486EC3A9C459A6F3A8921 /* MeetingSnapshot.swift in Sources */,
+				600D71A1EC50E3F5C205EA95 /* MeetingSpeaker.swift in Sources */,
 				D439602DE4230E8C755255E0 /* MeetingViews.swift in Sources */,
 				3312096B0F83F810138C6E8C /* NativeAPI.swift in Sources */,
 				22AA71699AA07AD369806FD7 /* NativePaper.swift in Sources */,
@@ -471,6 +477,7 @@
 				33C6051D38EF387A818DF530 /* MeetingIntents.swift in Sources */,
 				CE0416DD95A1609FB543CB39 /* MeetingKind.swift in Sources */,
 				C7AD72D879297AB1095C32EE /* MeetingSnapshot.swift in Sources */,
+				6B36A0D8A8B7893C93DAC944 /* MeetingSpeaker.swift in Sources */,
 				0C5C9AB0334B3F2667A9E1A0 /* SideleafWatchApp.swift in Sources */,
 				8060F7D3DC7565CA0D2D9EBD /* WatchConnection.swift in Sources */,
 				4017AB145D63D2D77A48D293 /* WatchMeetingView.swift in Sources */,
@@ -487,6 +494,7 @@
 				A932873E1BE0218759135545 /* MeetingIntents.swift in Sources */,
 				8A9F6AC9C163D8B7116BC6F4 /* MeetingKind.swift in Sources */,
 				5E97E0A6B09F40056F13B69A /* MeetingSnapshot.swift in Sources */,
+				E18A54EE324EB1B33E62C35F /* MeetingSpeaker.swift in Sources */,
 				592737F6775600F8159E4764 /* MeetingWidget.swift in Sources */,
 				ECA96F4E70EC775690BFAE9F /* SideleafWidgetBundle.swift in Sources */,
 				B5DCB4E5A37EF4A704C20F6F /* WatchMessage.swift in Sources */,

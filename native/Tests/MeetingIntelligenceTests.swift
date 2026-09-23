@@ -491,3 +491,81 @@ final class MeetingCuePreferencesTests: XCTestCase {
         XCTAssertTrue(preferences.records.isEmpty)
     }
 }
+
+/// Whose job is it. The same sentence means opposite things depending on who
+/// said it, and the recap is only useful if it gets that right.
+final class MeetingAttributionTests: XCTestCase {
+    private func engine() -> MeetingCueEngine {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return MeetingCueEngine(plan: MeetingPlan(), calendar: calendar)
+    }
+
+    private func cue(
+        _ transcript: String,
+        speaker: MeetingSpeaker,
+        kind: MeetingCue.Kind
+    ) -> MeetingCue? {
+        var engine = engine()
+        return engine
+            .ingest(transcript: transcript, elapsed: 10, now: Date(), speaker: speaker)
+            .created
+            .first { $0.kind == kind }
+    }
+
+    func testAPromiseYouMakeIsYours() {
+        let promise = cue("I'll send the proposal.", speaker: .you, kind: .commitment)
+        XCTAssertEqual(promise?.owedBy, .you)
+        XCTAssertEqual(promise?.attributionSource, .voice)
+        XCTAssertEqual(promise?.label, "You said you would")
+    }
+
+    func testAPromiseTheyMakeIsTheirs() {
+        let promise = cue("I'll send the proposal.", speaker: .other, kind: .commitment)
+        XCTAssertEqual(promise?.owedBy, .other)
+        XCTAssertEqual(promise?.attributionSource, .voice)
+        XCTAssertEqual(promise?.label, "They said they would")
+    }
+
+    func testARequestYouMakeIsOwedByThem() {
+        let ask = cue("Can you share the current numbers?", speaker: .you, kind: .request)
+        XCTAssertEqual(ask?.owedBy, .other)
+        XCTAssertEqual(ask?.label, "You asked them")
+    }
+
+    func testARequestMadeOfYouIsYours() {
+        let ask = cue("Can you share the current numbers?", speaker: .other, kind: .request)
+        XCTAssertEqual(ask?.owedBy, .you)
+        XCTAssertEqual(ask?.label, "You were asked")
+    }
+
+    func testWithNoVoiceProfileWorkIsAssumedYoursAndSaysSo() {
+        let promise = cue("I'll send the proposal.", speaker: .unknown, kind: .commitment)
+        XCTAssertEqual(promise?.owedBy, .you)
+        XCTAssertEqual(promise?.attributionSource, .assumed)
+        let ask = cue("Can you share the current numbers?", speaker: .unknown, kind: .request)
+        XCTAssertEqual(ask?.owedBy, .other)
+        XCTAssertEqual(ask?.attributionSource, .assumed)
+    }
+
+    func testOnlyWorkCarriesAnOwner() {
+        let decision = cue("We decided to run the pilot in Leeds.", speaker: .you, kind: .decision)
+        XCTAssertEqual(decision?.owedBy, .unknown)
+        XCTAssertFalse(decision?.carriesWork ?? true)
+    }
+
+    func testTheRuleItself() {
+        XCTAssertEqual(
+            MeetingCueEngine.attribution(for: .commitment, speaker: .other).owner,
+            .other
+        )
+        XCTAssertEqual(
+            MeetingCueEngine.attribution(for: .request, speaker: .other).owner,
+            .you
+        )
+        XCTAssertEqual(
+            MeetingCueEngine.attribution(for: .decision, speaker: .you).owner,
+            .unknown
+        )
+    }
+}

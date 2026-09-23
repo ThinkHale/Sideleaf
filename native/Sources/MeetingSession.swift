@@ -34,6 +34,10 @@ final class MeetingSession {
     private(set) var interruptionNotice: String?
     /// Why the last attempt to start never reached the microphone.
     private(set) var startFailure: String?
+    /// Who Sideleaf believes has been talking in the text it is about to read.
+    /// Nothing sets this until a voice profile exists, so it stays `unknown`
+    /// and cues fall back to assuming the phone's owner is speaking.
+    var currentSpeaker: MeetingSpeaker = .unknown
 
     let transcription: LiveTranscription
 
@@ -183,7 +187,8 @@ final class MeetingSession {
         let closing = engine.finish(
             transcript: transcription.transcript,
             elapsed: ended.timeIntervalSince(startedAt ?? ended),
-            now: ended
+            now: ended,
+            speaker: currentSpeaker
         )
         absorb(closing)
         phase = .ended
@@ -240,6 +245,25 @@ final class MeetingSession {
 
     func setDueDate(_ date: Date?, for cue: MeetingCue) {
         apply(cue, feedback: nil) { $0.dueDate = date }
+    }
+
+    /// Moves a piece of work between you and them. A correction always wins
+    /// over whatever Sideleaf decided.
+    func setOwner(_ owner: MeetingSpeaker, for cue: MeetingCue) {
+        apply(cue, feedback: nil) {
+            $0.owner = owner
+            $0.ownerSource = .corrected
+        }
+    }
+
+    /// Work this meeting left with you.
+    var yourWork: [MeetingCue] {
+        captured.filter { $0.carriesWork && $0.owedBy != .other }
+    }
+
+    /// Work the other side left holding.
+    var theirWork: [MeetingCue] {
+        captured.filter { $0.carriesWork && $0.owedBy == .other }
     }
 
     /// Starts offering a kind again after Sideleaf stopped.
@@ -313,7 +337,8 @@ final class MeetingSession {
         let changes = engine.ingest(
             transcript: transcription.transcript,
             elapsed: elapsed,
-            now: Date()
+            now: Date(),
+            speaker: currentSpeaker
         )
         absorb(changes)
         publishSnapshot(force: !changes.isEmpty)

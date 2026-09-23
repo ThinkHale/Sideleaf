@@ -226,6 +226,8 @@ struct MeetingCueEngine: Sendable {
     private var lastCoverageNudge: TimeInterval = 0
     private var calendar: Calendar
     private var sentenceIndex = 0
+    /// Who Sideleaf believes is talking in the text it is reading right now.
+    private var batchSpeaker: MeetingSpeaker = .unknown
     private var liveCues: [UUID: LiveCue] = [:]
     private var dismissals: [MeetingCue.Kind: Int] = [:]
     private var endorsements: [MeetingCue.Kind: Int] = [:]
@@ -259,8 +261,10 @@ struct MeetingCueEngine: Sendable {
     mutating func ingest(
         transcript: String,
         elapsed: TimeInterval,
-        now: Date = Date()
+        now: Date = Date(),
+        speaker: MeetingSpeaker = .unknown
     ) -> MeetingCueChanges {
+        batchSpeaker = speaker
         let scan = TranscriptScanner.scan(transcript, from: consumed)
         consumed = scan.consumed
         var changes = MeetingCueChanges()
@@ -276,8 +280,10 @@ struct MeetingCueEngine: Sendable {
     mutating func finish(
         transcript: String,
         elapsed: TimeInterval,
-        now: Date = Date()
+        now: Date = Date(),
+        speaker: MeetingSpeaker = .unknown
     ) -> MeetingCueChanges {
+        batchSpeaker = speaker
         let scan = TranscriptScanner.scan(transcript, from: consumed, flushTail: true)
         consumed = scan.consumed
         var changes = MeetingCueChanges()
@@ -784,6 +790,7 @@ struct MeetingCueEngine: Sendable {
         }
         promptFingerprints.insert(fingerprint)
         lastEmission[kind] = elapsed
+        let attribution = Self.attribution(for: kind, speaker: batchSpeaker)
         let cue = MeetingCue(
             kind: kind,
             prompt: text,
@@ -791,7 +798,9 @@ struct MeetingCueEngine: Sendable {
             createdAt: now,
             offset: elapsed,
             dueDate: dueDate,
-            priority: priority
+            priority: priority,
+            owner: attribution.owner,
+            ownerSource: attribution.source
         )
         cues.append(cue)
         liveCues[cue.id] = LiveCue(
@@ -852,6 +861,24 @@ struct MeetingCueEngine: Sendable {
             return "What is the worst case there, and who owns it?"
         }
         return "What would it take to fix that?"
+    }
+
+    /// Decides who owes the work a cue describes.
+    ///
+    /// "I'll send it" is owed by whoever said it. "Can you send it" is owed by
+    /// whoever they said it to. With no voice profile Sideleaf cannot tell who
+    /// is speaking, so it assumes the phone's owner is, which is what it did
+    /// before it could attribute anything, and marks the guess as assumed so
+    /// the interface can offer to flip it.
+    static func attribution(
+        for kind: MeetingCue.Kind,
+        speaker: MeetingSpeaker
+    ) -> (owner: MeetingSpeaker, source: SpeakerSource) {
+        guard kind == .commitment || kind == .request else { return (.unknown, .assumed) }
+        guard speaker.isKnown else {
+            return (kind == .commitment ? .you : .other, .assumed)
+        }
+        return (kind == .commitment ? speaker : speaker.counterpart, .voice)
     }
 
     static func keywords(in text: String) -> [String] {
